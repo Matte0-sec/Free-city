@@ -1,0 +1,474 @@
+body {
+	background: #222;
+	color: #fff;
+	font-family: Arial, sans-serif;
+	margin: 0;
+	text-align: center;
+	overflow: hidden;
+}
+h1 {
+	margin-top: 10px;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 10px;
+	z-index: 10;
+}
+#gameContainer {
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100vw;
+	height: 100vh;
+	background: #111;
+	border-radius: 0;
+	box-shadow: none;
+	overflow: hidden;
+	z-index: 1;
+}
+#ui {
+	position: absolute;
+	top: 20px;
+	right: 30px;
+	z-index: 20;
+	background: rgba(30,30,30,0.7);
+	padding: 16px 24px;
+	border-radius: 12px;
+	box-shadow: 0 2px 12px #000a;
+}
+#speedDisplay {
+	font-size: 1.2em;
+	font-weight: bold;
+	margin-right: 20px;
+	color: #00ff00;
+	text-shadow: 0 0 8px #00ff0040;
+	background: rgba(0, 100, 0, 0.3);
+	padding: 4px 8px;
+	border-radius: 6px;
+	border: 1px solid #00ff00;
+	transition: all 0.3s ease;
+}
+#timeControls {
+	display: inline-block;
+	margin-right: 20px;
+}
+#timeControls button {
+	padding: 8px 12px;
+	font-size: 1.2em;
+	background: rgba(60,60,60,0.8);
+	color: #fff;
+	border: 1px solid #666;
+	border-radius: 6px;
+	cursor: pointer;
+	margin: 0 2px;
+	transition: all 0.2s;
+}
+#timeControls button:hover {
+	background: rgba(100,100,100,0.9);
+	transform: scale(1.05);
+}
+#timeControls button:active {
+	transform: scale(0.95);
+}
+#money {
+	font-size: 1.2em;
+	margin-right: 20px;
+}
+#jobBtn, #fullscreenBtn {
+	padding: 10px 24px;
+	font-size: 1em;
+	background: #0a8;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	box-shadow: 0 2px 8px #000a;
+	transition: background 0.2s;
+	margin-left: 8px;
+}
+#jobBtn:hover, #fullscreenBtn:hover {
+	background: #066;
+}
+#shopPanel {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 30;
+	background: rgba(50,50,50,0.9);
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px #000a;
+	text-align: center;
+}
+#shopPanel h2 {
+	margin-top: 0;
+}
+#shopPanel button {
+	padding: 10px 20px;
+	margin: 5px;
+	font-size: 1em;
+	background: #4CAF50;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	box-shadow: 0 2px 8px #000a;
+	transition: background 0.2s;
+}
+#shopPanel button:hover {
+	background: #45a049;
+}
+#jobPanel {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 30;
+	background: rgba(30, 50, 100, 0.9);
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px #000a;
+	text-align: center;
+}
+#jobPanel h2 {
+	margin-top: 0;
+	color: #fff;
+}
+#jobPanel button {
+	padding: 10px 20px;
+	margin: 5px;
+	font-size: 1em;
+	background: #2196F3;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	box-shadow: 0 2px 8px #000a;
+	transition: background 0.2s;
+}
+#jobPanel button:hover {
+	background: #1976D2;
+}
+#messageBox {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 40;
+	background: rgba(255, 0, 0, 0.9);
+	color: white;
+	padding: 20px 30px;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+	font-size: 1.2em;
+	font-weight: bold;
+	text-align: center;
+	animation: fadeIn 0.3s ease-in;
+}
+@keyframes fadeIn {
+	from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+	to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+#dialogPanel {
+	position: absolute;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 35;
+	background: rgba(40, 40, 60, 0.95);
+	color: #fff;
+	padding: 20px;
+	border-radius: 15px;
+	box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+	min-width: 400px;
+	max-width: 500px;
+	text-align: center;
+	animation: slideUp 0.3s ease-out;
+}
+@keyframes slideUp {
+	from { opacity: 0; transform: translateX(-50%) translateY(50px); }
+	to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+#npcName {
+	font-size: 1.2em;
+	font-weight: bold;
+	color: #4CAF50;
+	margin-bottom: 10px;
+}
+#dialogText {
+	font-size: 1em;
+	line-height: 1.4;
+	margin-bottom: 15px;
+	min-height: 40px;
+}
+#dialogOptions {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	flex-wrap: wrap;
+}
+#dialogOptions button {
+	padding: 8px 16px;
+	font-size: 0.9em;
+	background: #2196F3;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+#dialogOptions button:hover {
+	background: #1976D2;
+}
+
+/* Quest-Panel */
+#questPanel {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	background: rgba(30,30,30,0.9);
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+	z-index: 1000;
+	min-width: 300px;
+	max-width: 400px;
+	animation: slideUp 0.3s ease-out;
+}
+#questPanel h3 {
+	margin: 0 0 15px 0;
+	color: #FFD700;
+	font-size: 1.2em;
+}
+#questList {
+	max-height: 200px;
+	overflow-y: auto;
+}
+.quest-item {
+	background: rgba(50,50,50,0.7);
+	padding: 10px;
+	margin-bottom: 8px;
+	border-radius: 8px;
+	border-left: 4px solid #4CAF50;
+}
+.quest-title {
+	font-weight: bold;
+	color: #FFF;
+	margin-bottom: 5px;
+}
+.quest-description {
+	color: #CCC;
+	font-size: 0.9em;
+	margin-bottom: 5px;
+}
+.quest-progress {
+	color: #FFD700;
+	font-size: 0.8em;
+}
+#closeQuest {
+	margin-top: 15px;
+	padding: 8px 16px;
+	background: #f44336;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	width: 100%;
+}
+#closeQuest:hover {
+	background: #d32f2f;
+}
+#questBtn {
+	padding: 10px 24px;
+	font-size: 1em;
+	background: #FFD700;
+	color: #000;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	margin-left: 10px;
+}
+#questBtn:hover {
+	background: #FFC107;
+}
+
+/* Autohändler */
+#carDealerPanel {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	background: rgba(30,30,30,0.9);
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+	z-index: 1000;
+	min-width: 350px;
+	max-width: 450px;
+	animation: slideUp 0.3s ease-out;
+}
+#carDealerPanel h2 {
+	margin: 0 0 20px 0;
+	color: #FFD700;
+	font-size: 1.4em;
+	text-align: center;
+}
+#carList {
+	max-height: 400px;
+	overflow-y: auto;
+}
+.car-item {
+	background: rgba(50,50,50,0.7);
+	padding: 15px;
+	margin-bottom: 12px;
+	border-radius: 8px;
+	border-left: 4px solid #2196F3;
+}
+.car-item h3 {
+	margin: 0 0 8px 0;
+	color: #FFF;
+	font-size: 1.1em;
+}
+.car-item p {
+	margin: 5px 0;
+	color: #CCC;
+	font-size: 0.9em;
+}
+
+/* Polizei-Alarm Animation */
+@keyframes policeBlink {
+	0% { background: rgba(255, 0, 0, 0.9); }
+	50% { background: rgba(255, 255, 0, 0.9); }
+	100% { background: rgba(255, 0, 0, 0.9); }
+}
+
+/* Polizei-Warnung */
+#policeWarning {
+	text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+	box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+}
+
+/* Bankraub-Panel */
+#bankRobberyPanel {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: rgba(20, 20, 20, 0.95);
+	border: 2px solid #ff4444;
+	border-radius: 12px;
+	padding: 20px;
+	max-width: 400px;
+	width: 90%;
+	z-index: 1000;
+	box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+}
+#bankRobberyPanel h2 {
+	color: #ff4444;
+	margin-top: 0;
+	text-align: center;
+	font-size: 1.5em;
+}
+#bankRobberyInfo {
+	background: rgba(0, 0, 0, 0.5);
+	padding: 15px;
+	border-radius: 8px;
+	margin: 15px 0;
+}
+#bankRobberyInfo p {
+	margin: 8px 0;
+	color: #fff;
+	font-size: 0.9em;
+}
+#bankRobberyActions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 15px 0;
+}
+#bankRobberyActions button {
+	padding: 12px 20px;
+	font-size: 1em;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.2s;
+	font-weight: bold;
+}
+#robBankBtn {
+	background: linear-gradient(45deg, #ff4444, #cc0000);
+	color: white;
+}
+#robBankBtn:hover:not(:disabled) {
+	background: linear-gradient(45deg, #ff6666, #ee0000);
+	transform: scale(1.02);
+}
+#hackSecurityBtn {
+	background: linear-gradient(45deg, #4444ff, #0000cc);
+	color: white;
+}
+#hackSecurityBtn:hover:not(:disabled) {
+	background: linear-gradient(45deg, #6666ff, #0000ee);
+	transform: scale(1.02);
+}
+#escapeBtn {
+	background: linear-gradient(45deg, #44ff44, #00cc00);
+	color: white;
+}
+#escapeBtn:hover:not(:disabled) {
+	background: linear-gradient(45deg, #66ff66, #00ee00);
+	transform: scale(1.02);
+}
+#bankRobberyActions button:disabled {
+	background: #666;
+	color: #999;
+	cursor: not-allowed;
+	transform: none;
+}
+#closeBankRobbery {
+	background: #666;
+	color: white;
+	padding: 10px 20px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	margin-top: 15px;
+	width: 100%;
+}
+#closeBankRobbery:hover {
+	background: #888;
+}
+.car-item button {
+	padding: 8px 16px;
+	font-size: 0.9em;
+	background: #4CAF50;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	margin-top: 10px;
+	width: 100%;
+}
+.car-item button:hover {
+	background: #45a049;
+}
+#closeCarDealer {
+	margin-top: 15px;
+	padding: 8px 16px;
+	background: #f44336;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	width: 100%;
+}
+
+/* Geschwindigkeitsanzeige Animation */
+@keyframes speedPulse {
+	0% { transform: scale(1); opacity: 1; }
+	50% { transform: scale(1.1); opacity: 0.8; }
+	100% { transform: scale(1); opacity: 1; }
+}
+#closeCarDealer:hover {
+	background: #d32f2f;
+}

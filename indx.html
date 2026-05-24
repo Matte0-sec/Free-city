@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Free City 3D</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+</head>
+<body>
+	<h1>Free City 3D</h1>
+	<div id="gameContainer"></div>
+	<div id="ui">
+		<span id="money">Geld: 0 €</span>
+		<span id="bankMoney">Bank: 0 €</span>
+		<span id="wantedLevel">Wanted: 0</span>
+		<span id="timeDisplay">🕐 12:00</span>
+		<span id="speedDisplay" style="display: none;">🚗 0 km/h</span>
+		<div id="timeControls">
+			<button id="timePause">⏸️</button>
+			<button id="timeNormal">▶️</button>
+			<button id="timeFast">⏩</button>
+			<button id="timeVeryFast">⏭️</button>
+		</div>
+		<button id="jobBtn">Job machen</button>
+		<button id="buyBtn">Kaufen</button>
+		<button id="bankBtn">Bank</button>
+		<button id="bankRobberyBtn">🏦 Bankraub</button>
+		<button id="questBtn">Quests</button>
+		<button id="fullscreenBtn">Vollbild</button>
+	</div>
+	<div id="messageBox" style="display: none;"></div>
+	<div id="shopPanel" style="display: none;">
+		<h2>Supermarkt</h2>
+		<button id="buyApple">Apfel kaufen (10€)</button>
+		<button id="buyBread">Brot kaufen (20€)</button>
+		<button id="buyDrink">Getränk kaufen (15€)</button>
+		<button id="buyHouse">Haus kaufen (100€)</button>
+		<button id="closeShop">Schließen</button>
+	</div>
+	<div id="jobPanel" style="display: none;">
+		<h2>Jobcenter - Wähle einen Job</h2>
+		<button id="officeJobBtn">Bürojob (30€)</button>
+		<button id="deliveryJobBtn">Lieferjob (40€)</button>
+		<button id="cleaningJobBtn">Reinigungsjob (25€)</button>
+		<button id="taxiJobBtn">Taxijob (60€)</button>
+		<button id="closeJob">Schließen</button>
+	</div>
+	<div id="dialogPanel" style="display: none;">
+		<div id="npcName">NPC Name</div>
+		<div id="dialogText">Dialog text here...</div>
+		<div id="dialogOptions">
+			<button id="dialogOption1">Option 1</button>
+			<button id="dialogOption2">Option 2</button>
+			<button id="dialogOption3">Auf Wiedersehen</button>
+		</div>
+	</div>
+	<div id="questPanel" style="display: none;">
+		<h3>Aktive Quests</h3>
+		<div id="questList"></div>
+		<button id="closeQuest">Schließen</button>
+	</div>
+	<div id="carDealerPanel" style="display: none;">
+		<h2>🚗 Autohaus</h2>
+		<div id="carList">
+			<div class="car-item">
+				<h3>🚙 Kleiner Wagen</h3>
+				<p>Perfekt für die Stadt! Schnell und wendig.</p>
+				<p><strong>Preis: 500€</strong></p>
+				<button id="buySmallCar">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🚐 Familien-Van</h3>
+				<p>Viel Platz für die ganze Familie!</p>
+				<p><strong>Preis: 800€</strong></p>
+				<button id="buyFamilyVan">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🏎️ Sportwagen</h3>
+				<p>Schnell und stylisch! Für echte Rennfahrer.</p>
+				<p><strong>Preis: 1200€</strong></p>
+				<button id="buySportsCar">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🚛 Pickup Truck</h3>
+				<p>Stark und robust! Perfekt für Abenteuer.</p>
+				<p><strong>Preis: 1000€</strong></p>
+				<button id="buyPickupTruck">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🚙 SUV</h3>
+				<p>Groß und komfortabel! Ideal für lange Fahrten.</p>
+				<p><strong>Preis: 1500€</strong></p>
+				<button id="buySUV">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🏎️ Cabriolet</h3>
+				<p>Offen fahren und den Wind spüren! Stylisch und sportlich.</p>
+				<p><strong>Preis: 1800€</strong></p>
+				<button id="buyConvertible">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🛡️ Luxuslimousine</h3>
+				<p>Der Gipfel des Komforts! Für besondere Anlässe.</p>
+				<p><strong>Preis: 2500€</strong></p>
+				<button id="buyLuxury">Kaufen</button>
+			</div>
+			<div class="car-item">
+				<h3>🚌 Bus</h3>
+				<p>Viel Platz für viele Passagiere! Der König der Straße.</p>
+				<p><strong>Preis: 3000€</strong></p>
+				<button id="buyBus">Kaufen</button>
+			</div>
+		</div>
+		<button id="closeCarDealer">Schließen</button>
+	</div>
+	<div id="bankRobberyPanel" style="display: none;">
+		<h2>🏦 NPC-Bankraub</h2>
+		<p><strong>Warnung:</strong> NPC-Geld stehlen ist illegal und gefährlich!</p>
+		<div id="bankRobberyInfo">
+			<p>NPC-Bankgeld verfügbar: <span id="bankRobberyMoney">0€</span></p>
+			<p>Polizei-Alarm: <span id="policeAlert">Nein</span></p>
+			<p>Gefängnis-Risiko: <span id="jailRisk">Niedrig</span></p>
+		</div>
+		<div id="bankRobberyActions">
+			<button id="robBankBtn">💰 NPC-Bank ausrauben</button>
+			<button id="guaranteedRobBtn">✅ Garantierter Raub</button>
+			<button id="hackSecurityBtn">🔓 Sicherheitssystem hacken</button>
+			<button id="escapeBtn">🏃 Flucht planen</button>
+			<button id="testMoneyBtn">🧪 Geld-Test</button>
+			<button id="refillNpcBtn">🔄 NPC-Bank auffüllen</button>
+			<button id="triggerPoliceBtn">🚔 Polizei-Alarm testen</button>
+			<button id="resetPoliceBtn">✅ Polizei zurücksetzen</button>
+			<button id="policeStatusBtn">📊 Polizei-Status</button>
+			<button id="guaranteedJailBtn">⏰ Gefängnis-Test</button>
+			<button id="testPoliceCarsBtn">🚗 Polizei-Fahrzeuge testen</button>
+			<button id="testFootPoliceBtn">👮‍♂️ Fuß-Polizisten testen</button>
+		</div>
+		<button id="closeBankRobbery">Schließen</button>
+	</div>
+	<script src="script.js"></script>
+</body>
+</html>
