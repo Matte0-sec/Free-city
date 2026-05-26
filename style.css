@@ -89,6 +89,80 @@ h1 {
 #jobBtn:hover, #fullscreenBtn:hover {
 	background: #066;
 }
+
+#mapNavigator {
+	position: fixed;
+	left: 20px;
+	top: 232px;
+	width: 200px;
+	padding: 8px 9px;
+	border-radius: 10px;
+	background: rgba(15, 15, 18, 0.78);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	text-align: left;
+	min-width: 0;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+	z-index: 101;
+}
+
+.mapNavigatorTitle {
+	font-size: 0.72em;
+	font-weight: bold;
+	letter-spacing: 0.04em;
+	margin-bottom: 6px;
+	text-transform: uppercase;
+	color: #f3d37a;
+}
+
+.mapNavigatorRow {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+#mapSearchInput {
+	flex: 1 1 100%;
+	min-width: 0;
+	padding: 7px 9px;
+	border-radius: 7px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: rgba(255, 255, 255, 0.06);
+	color: #fff;
+	outline: none;
+	font-size: 0.82em;
+}
+
+#mapSearchInput::placeholder {
+	color: rgba(255, 255, 255, 0.55);
+}
+
+#mapSearchBtn, #mapClearBtn {
+	padding: 7px 10px;
+	border: none;
+	border-radius: 7px;
+	cursor: pointer;
+	font-weight: bold;
+	font-size: 0.78em;
+	color: #111;
+	background: #f3d37a;
+	box-shadow: 0 2px 8px #0008;
+}
+
+#mapClearBtn {
+	background: #8fb3ff;
+}
+
+#mapSearchBtn:hover, #mapClearBtn:hover {
+	filter: brightness(1.05);
+}
+
+#mapSearchResult {
+	margin-top: 6px;
+	font-size: 0.74em;
+	color: rgba(255, 255, 255, 0.8);
+	min-height: 1.2em;
+}
 #shopPanel {
 	position: absolute;
 	top: 50%;

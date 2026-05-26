@@ -30,6 +30,10 @@ const questPanel = document.getElementById('questPanel');
 const questList = document.getElementById('questList');
 const closeQuestBtn = document.getElementById('closeQuest');
 const questBtn = document.getElementById('questBtn');
+const mapSearchInput = document.getElementById('mapSearchInput');
+const mapSearchBtn = document.getElementById('mapSearchBtn');
+const mapClearBtn = document.getElementById('mapClearBtn');
+const mapSearchResult = document.getElementById('mapSearchResult');
 
 // Uhrzeit-System
 const timeDisplay = document.getElementById('timeDisplay');
@@ -670,6 +674,40 @@ if (npcBankMoney < 1000) {
 }
 
 let houseBought = localStorage.getItem('houseBought') === 'true';
+let ownedHouses = JSON.parse(localStorage.getItem('ownedHouses')) || [];
+let playerHouses = [];
+
+const housePlots = [
+	{ x: -260, z: 260, name: 'Grundstück 1' },
+	{ x: 280, z: 300, name: 'Grundstück 2' },
+	{ x: -380, z: 180, name: 'Grundstück 3' },
+	{ x: 420, z: -320, name: 'Grundstück 4' },
+	{ x: -500, z: -320, name: 'Grundstück 5' },
+	{ x: 540, z: 420, name: 'Verstecktes Grundstück' }
+];
+
+const houseCatalog = [
+	{ id: 'small', name: 'Kleines Haus', price: 1200, color: 0xc58b5a, houseType: 'cottage', description: 'Gemütlich, günstig und perfekt für den Start.' },
+	{ id: 'family', name: 'Familienhaus', price: 2500, color: 0x9db4c0, houseType: 'default', description: 'Mehr Platz für Alltag und Familie.' },
+	{ id: 'villa', name: 'Villa', price: 6500, color: 0xf0e2c6, houseType: 'villa', description: 'Groß, hell und deutlich luxuriöser.' },
+	{ id: 'luxury', name: 'Luxusvilla', price: 12000, color: 0xd9d9d9, houseType: 'modern', description: 'Das teuerste und auffälligste Haus.' },
+	{ id: 'mystery', name: 'Mysteriöses Haus', price: 9000, color: 0x2f3640, houseType: 'mystery', description: 'Unheimlich, verborgen und mit einem Keller.' }
+];
+
+let mysteryHouseState = null;
+let mysteryBasementBox = null;
+let mysteryBasementExit = null;
+let mysteryBasementRoom = null;
+let mysteryBasementEnteredAt = 0;
+let mysteryBasementPoliceTriggered = false;
+let mysteryBoxRewardCooldown = 0;
+let mysteryPoliceUnits = [];
+let isInMysteryBasement = false;
+
+if (houseBought && ownedHouses.length === 0) {
+	ownedHouses.push({ id: 'legacy-house', houseId: 'small', plotIndex: 0 });
+}
+	houseBought = ownedHouses.length > 0;
 
 // Quest-Funktionen
 function generateQuest(npc) {
@@ -780,9 +818,10 @@ scene.background = new THREE.Color(0x87CEEB); // Schöner blauer Himmel
 // Initialisierung
 moneySpan.textContent = `Geld: ${money} €`;
 bankMoneySpan.textContent = `Bank: ${bankMoney} €`;
+refreshHouseButtonLabel();
 
 if (houseBought) {
-	createPlayerHouse();
+	spawnOwnedHouses();
 }
 
 // Autohändler initialisieren
@@ -792,6 +831,9 @@ function saveData() {
 	localStorage.setItem('money', money);
 	localStorage.setItem('bankMoney', bankMoney);
 	localStorage.setItem('npcBankMoney', npcBankMoney);
+	localStorage.setItem('jobEarnings', JSON.stringify(jobEarnings));
+	localStorage.setItem('ownedHouses', JSON.stringify(ownedHouses));
+	houseBought = ownedHouses.length > 0;
 	localStorage.setItem('houseBought', houseBought);
 }
 
@@ -844,17 +886,74 @@ minimapRenderer.setSize(200, 200);
 minimapRenderer.setClearColor(0x000000, 0.5);
 minimapContainer.appendChild(minimapRenderer.domElement);
 
-const minimapCamera = new THREE.OrthographicCamera(-300, 300, 300, -300, 0.1, 1000);
+const minimapCamera = new THREE.OrthographicCamera(-240, 240, 240, -240, 0.1, 1000);
 minimapCamera.position.set(0, 200, 0);
 minimapCamera.lookAt(0, 0, 0);
 
 // Spieler-Marker für Minimap
-const playerMarker = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 })
+const playerMarker = new THREE.Group();
+const playerMarkerCore = new THREE.Mesh(
+	new THREE.BoxGeometry(12, 12, 12),
+	new THREE.MeshBasicMaterial({ color: 0xff2a2a })
 );
+playerMarkerCore.position.y = 6;
+playerMarker.add(playerMarkerCore);
+
+const playerMarkerRing = new THREE.Mesh(
+	new THREE.TorusGeometry(10, 2, 10, 24),
+	new THREE.MeshBasicMaterial({ color: 0xffffff })
+);
+playerMarkerRing.rotation.x = Math.PI / 2;
+playerMarkerRing.position.y = 6;
+playerMarker.add(playerMarkerRing);
+
+const playerMarkerGlow = new THREE.Mesh(
+	new THREE.SphereGeometry(6, 16, 16),
+	new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.35 })
+);
+playerMarkerGlow.position.y = 6;
+playerMarker.add(playerMarkerGlow);
+
 playerMarker.position.y = 1;
 scene.add(playerMarker);
+
+const minimapFocusMarker = new THREE.Group();
+const minimapFocusRing = new THREE.Mesh(
+	new THREE.TorusGeometry(12, 2.5, 12, 28),
+	new THREE.MeshBasicMaterial({ color: 0x00ffd5 })
+);
+minimapFocusRing.rotation.x = Math.PI / 2;
+minimapFocusRing.position.y = 3;
+minimapFocusMarker.add(minimapFocusRing);
+
+const minimapFocusBeam = new THREE.Mesh(
+	new THREE.CylinderGeometry(2, 2, 18, 12, 1, true),
+	new THREE.MeshBasicMaterial({ color: 0x00ffd5, transparent: true, opacity: 0.45 })
+);
+minimapFocusBeam.position.y = 10;
+minimapFocusMarker.add(minimapFocusBeam);
+
+minimapFocusMarker.visible = false;
+scene.add(minimapFocusMarker);
+
+let minimapFocusTarget = null;
+let minimapFocusLabel = '';
+let minimapFocusZoom = 1;
+
+function updateMapNavigatorLayout() {
+	if (!mapSearchInput || !mapSearchBtn || !mapClearBtn || !mapSearchResult) return;
+	const minimapWidth = minimapContainer.getBoundingClientRect().width || 200;
+	const topOffset = 20 + minimapWidth + 12;
+	const targetWidth = Math.max(160, minimapWidth);
+	const navigator = document.getElementById('mapNavigator');
+	if (navigator) {
+		navigator.style.left = '20px';
+		navigator.style.top = `${topOffset}px`;
+		navigator.style.width = `${targetWidth}px`;
+	}
+}
+
+updateMapNavigatorLayout();
 
 // Minimap Hover-Effekte
 let isHoveringMinimap = false;
@@ -899,7 +998,89 @@ window.addEventListener('resize', () => {
     minimapRenderer.setSize(minimapSize, minimapSize);
     minimapContainer.style.width = minimapSize + 'px';
     minimapContainer.style.height = minimapSize + 'px';
+	updateMapNavigatorLayout();
 });// Maussteuerung für Kamera (immer aktiv)
+
+function normalizeMapSearchText(text) {
+	return String(text || '').trim().toLowerCase();
+}
+
+function getMapSearchTargets() {
+	const ownedTargets = ownedHouses.map(houseData => {
+		const catalogEntry = houseCatalog.find(item => item.id === houseData.houseId) || houseCatalog[0];
+		const plot = housePlots[houseData.plotIndex] || housePlots[0];
+		return {
+			label: catalogEntry.name,
+			x: plot.x,
+			z: plot.z
+		};
+	});
+
+	return [...buildings, ...ownedTargets];
+}
+
+function focusMinimapOnHouse(target) {
+	if (!target) return;
+	minimapFocusTarget = { x: target.x, z: target.z };
+	minimapFocusLabel = target.label;
+	minimapFocusZoom = 3.6;
+	minimapFocusMarker.position.set(target.x, 0, target.z);
+	minimapFocusMarker.visible = true;
+	if (mapSearchResult) {
+		mapSearchResult.textContent = `${target.label} gefunden bei (${Math.round(target.x)}, ${Math.round(target.z)})`;
+	}
+	showMessage(`${target.label} auf der Karte markiert.`, 2500);
+}
+
+function clearMinimapFocus() {
+	minimapFocusTarget = null;
+	minimapFocusLabel = '';
+	minimapFocusZoom = 1;
+	minimapFocusMarker.visible = false;
+	if (mapSearchResult) {
+		mapSearchResult.textContent = 'Kartenfokus zurückgesetzt.';
+	}
+}
+
+function searchHouseOnMap() {
+	const query = normalizeMapSearchText(mapSearchInput ? mapSearchInput.value : '');
+	if (!query) {
+		if (mapSearchResult) {
+			mapSearchResult.textContent = 'Bitte einen Hausnamen eingeben.';
+		}
+		return;
+	}
+
+	const match = getMapSearchTargets().find(target => normalizeMapSearchText(target.label).includes(query));
+	if (!match) {
+		if (mapSearchResult) {
+			mapSearchResult.textContent = `Kein Haus zu "${query}" gefunden.`;
+		}
+		showMessage('Kein passendes Haus auf der Karte gefunden.', 2500);
+		return;
+	}
+
+	focusMinimapOnHouse(match);
+}
+
+if (mapSearchBtn) {
+	mapSearchBtn.addEventListener('click', searchHouseOnMap);
+}
+
+if (mapClearBtn) {
+	mapClearBtn.addEventListener('click', () => {
+		clearMinimapFocus();
+		if (mapSearchInput) mapSearchInput.value = '';
+	});
+}
+
+if (mapSearchInput) {
+	mapSearchInput.addEventListener('keydown', event => {
+		if (event.key === 'Enter') {
+			searchHouseOnMap();
+		}
+	});
+}
 window.addEventListener('mousemove', (e) => {
 	if (lastMouseX !== null && lastMouseY !== null) {
 		const dx = e.clientX - lastMouseX;
@@ -922,7 +1103,7 @@ fullscreenBtn.addEventListener('click', () => {
 
 // Boden (noch größer)
 
-const groundGeo = new THREE.BoxGeometry(1200, 0.5, 1200);
+const groundGeo = new THREE.BoxGeometry(1800, 0.5, 1800);
 const groundMat = new THREE.MeshPhongMaterial({ color: 0x228822 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.position.y = -0.25;
@@ -1044,14 +1225,77 @@ function animateCars() {
 }
 // Straßen-Definitionen für Kollisionslogik
 const streets = [
-	{ x: 0, z: -320, width: 480, length: 24, rot: 0 },
-	{ x: 0, z: 320, width: 480, length: 24, rot: 0 },
-	{ x: 320, z: 0, width: 24, length: 480, rot: 0 },
-	{ x: -320, z: 0, width: 24, length: 480, rot: 0 },
-	{ x: 0, z: 0, width: 480, length: 24, rot: 0 }
+	{ x: 0, z: -420, width: 700, length: 24, rot: 0 },
+	{ x: 0, z: 420, width: 700, length: 24, rot: 0 },
+	{ x: 420, z: 0, width: 24, length: 700, rot: 0 },
+	{ x: -420, z: 0, width: 24, length: 700, rot: 0 },
+	{ x: 0, z: 0, width: 700, length: 24, rot: 0 },
+	{ x: 0, z: -180, width: 520, length: 18, rot: 0 },
+	{ x: 0, z: 180, width: 520, length: 18, rot: 0 },
+	{ x: 180, z: 0, width: 18, length: 520, rot: 0 },
+	{ x: -180, z: 0, width: 18, length: 520, rot: 0 }
 ];
 for (const s of streets) {
 	createStreet(s.x, s.z, s.width, s.length, s.rot);
+}
+
+const zebraCrossingPoints = [];
+const zebraXCenters = [-420, -180, 180, 420];
+const zebraZCenters = [-420, -180, 0, 180, 420];
+
+function createZebraCrossing(x, z) {
+	const crossing = new THREE.Group();
+	const base = new THREE.Mesh(
+		new THREE.BoxGeometry(24, 0.08, 10),
+		new THREE.MeshPhongMaterial({ color: 0x2f2f2f })
+	);
+	base.position.y = 0.06;
+	crossing.add(base);
+
+	for (let i = -3; i <= 3; i++) {
+		const stripe = new THREE.Mesh(
+			new THREE.BoxGeometry(2.2, 0.1, 9),
+			new THREE.MeshPhongMaterial({ color: 0xffffff })
+		);
+		stripe.position.set(i * 3, 0.12, 0);
+		crossing.add(stripe);
+	}
+
+	crossing.position.set(x, 0.02, z);
+	scene.add(crossing);
+	zebraCrossingPoints.push({ x, z, width: 24, length: 10, mesh: crossing });
+}
+
+for (const x of zebraXCenters) {
+	for (const z of zebraZCenters) {
+		createZebraCrossing(x, z);
+	}
+}
+
+function isPointOnZebraCrossing(x, z) {
+	for (const crossing of zebraCrossingPoints) {
+		const minX = crossing.x - crossing.width / 2;
+		const maxX = crossing.x + crossing.width / 2;
+		const minZ = crossing.z - crossing.length / 2;
+		const maxZ = crossing.z + crossing.length / 2;
+		if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function getNearestZebraCrossing(x, z) {
+	let nearest = zebraCrossingPoints[0];
+	let nearestDistance = Infinity;
+	for (const crossing of zebraCrossingPoints) {
+		const distance = Math.sqrt(Math.pow(x - crossing.x, 2) + Math.pow(z - crossing.z, 2));
+		if (distance < nearestDistance) {
+			nearestDistance = distance;
+			nearest = crossing;
+		}
+	}
+	return nearest;
 }
 
 // Autos initialisieren – jetzt kennen wir die Straßen
@@ -1101,7 +1345,77 @@ scene.add(dirLight);
 function createBuilding(x, z, color, label, houseType = 'default') {
 	const group = new THREE.Group();
 	
-	if (houseType === 'modern') {
+	if (houseType === 'mystery') {
+		const mainBody = new THREE.Mesh(
+			new THREE.BoxGeometry(26, 16, 22),
+			new THREE.MeshPhongMaterial({ color: 0x20242c })
+		);
+		mainBody.position.y = 8;
+		group.add(mainBody);
+
+		const roof = new THREE.Mesh(
+			new THREE.ConeGeometry(18, 9, 4),
+			new THREE.MeshPhongMaterial({ color: 0x0f1115 })
+		);
+		roof.position.y = 21;
+		group.add(roof);
+
+		const windowGlowMat = new THREE.MeshPhongMaterial({ color: 0x9b59ff, emissive: 0x4b2e83 });
+		for (let i = -1; i <= 1; i += 2) {
+			const windowMesh = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 0.4), windowGlowMat);
+			windowMesh.position.set(i * 6, 10, 11);
+			group.add(windowMesh);
+		}
+
+		const basementHatch = new THREE.Mesh(
+			new THREE.BoxGeometry(4, 0.4, 4),
+			new THREE.MeshPhongMaterial({ color: 0x111111 })
+		);
+		basementHatch.position.set(0, 0.2, -6);
+		group.add(basementHatch);
+
+		const hatchLight = new THREE.PointLight(0x9b59ff, 0.6, 18);
+		hatchLight.position.set(0, 6, -7);
+		group.add(hatchLight);
+
+	} else if (houseType === 'villa') {
+		// Große Villa mit zwei Flügeln
+		const mainBuilding = new THREE.Mesh(
+			new THREE.BoxGeometry(32, 18, 24),
+			new THREE.MeshPhongMaterial({ color })
+		);
+		mainBuilding.position.y = 9;
+		group.add(mainBuilding);
+
+		const leftWing = new THREE.Mesh(
+			new THREE.BoxGeometry(12, 14, 18),
+			new THREE.MeshPhongMaterial({ color: 0xffffff })
+		);
+		leftWing.position.set(-16, 7, 0);
+		group.add(leftWing);
+
+		const rightWing = new THREE.Mesh(
+			new THREE.BoxGeometry(12, 14, 18),
+			new THREE.MeshPhongMaterial({ color: 0xf4f4f4 })
+		);
+		rightWing.position.set(16, 7, 0);
+		group.add(rightWing);
+
+		const roof = new THREE.Mesh(
+			new THREE.ConeGeometry(24, 10, 4),
+			new THREE.MeshPhongMaterial({ color: 0x7a5c3a })
+		);
+		roof.position.y = 24;
+		group.add(roof);
+
+		const balcony = new THREE.Mesh(
+			new THREE.BoxGeometry(18, 1.2, 4),
+			new THREE.MeshPhongMaterial({ color: 0xdddddd })
+		);
+		balcony.position.set(0, 12, 15);
+		group.add(balcony);
+
+	} else if (houseType === 'modern') {
 		// Moderner Hochhaus-Stil
 		const mainBuilding = new THREE.Mesh(
 			new THREE.BoxGeometry(15, 60, 15),
@@ -1280,7 +1594,7 @@ function createBuilding(x, z, color, label, houseType = 'default') {
 	const spriteMat = new THREE.SpriteMaterial({ map: texture });
 	const sprite = new THREE.Sprite(spriteMat);
 	sprite.scale.set(18, 4, 1);
-	sprite.position.set(x, houseType === 'tower' ? 100 : houseType === 'modern' ? 75 : 50, z + 12);
+	sprite.position.set(x, houseType === 'tower' ? 100 : houseType === 'modern' ? 75 : houseType === 'villa' ? 70 : 50, z + 12);
 	scene.add(sprite);
 
 	// Spezifische Details basierend auf dem Label
@@ -1622,7 +1936,17 @@ const buildings = [
 	{ x: 100, z: 240, color: 0x448888, label: 'Hotel', houseType: 'modern' },
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
 	{ x: 0, z: -260, color: 0x336666, label: 'Bahnhof', houseType: 'flat' },
-	{ x: -80, z: 200, color: 0xFF6B35, label: 'Autohaus', houseType: 'flat' }
+	{ x: -80, z: 200, color: 0xFF6B35, label: 'Autohaus', houseType: 'flat' },
+	{ x: 360, z: -340, color: 0x9c88ff, label: 'Wohnhaus A', houseType: 'flat' },
+	{ x: 420, z: -140, color: 0x7ed6df, label: 'Wohnhaus B', houseType: 'colonial' },
+	{ x: 340, z: 260, color: 0xf6e58d, label: 'Wohnhaus C', houseType: 'default' },
+	{ x: -360, z: -340, color: 0xffbe76, label: 'Wohnhaus D', houseType: 'flat' },
+	{ x: -420, z: 120, color: 0x95afc0, label: 'Wohnhaus E', houseType: 'default' },
+	{ x: -320, z: 300, color: 0xeb4d4b, label: 'Wohnhaus F', houseType: 'modern' },
+	{ x: 260, z: 380, color: 0x6ab04c, label: 'Wohnhaus G', houseType: 'flat' },
+	{ x: -220, z: 420, color: 0x4834d4, label: 'Wohnhaus H', houseType: 'colonial' },
+	{ x: 440, z: 360, color: 0x22a6b3, label: 'Wohnhaus I', houseType: 'default' },
+	{ x: -440, z: -40, color: 0xf0932b, label: 'Wohnhaus J', houseType: 'flat' }
 ];
 const buildingBounds = [];
 let currentBuildingIndex = null; // Spieler aktuell in diesem Gebäude oder null
@@ -1642,9 +1966,9 @@ for (const b of buildings) {
 
 // Natur-Elemente hinzufügen
 // Bäume
-for (let i = 0; i < 15; i++) {
-	const x = Math.random() * 800 - 400;
-	const z = Math.random() * 800 - 400;
+for (let i = 0; i < 30; i++) {
+	const x = Math.random() * 1200 - 600;
+	const z = Math.random() * 1200 - 600;
 	// Vermeide Gebäude-Bereiche
 	let valid = true;
 	for (const b of buildings) {
@@ -1659,9 +1983,9 @@ for (let i = 0; i < 15; i++) {
 }
 
 // Brunnen
-for (let i = 0; i < 5; i++) {
-	const x = Math.random() * 600 - 300;
-	const z = Math.random() * 600 - 300;
+for (let i = 0; i < 10; i++) {
+	const x = Math.random() * 1000 - 500;
+	const z = Math.random() * 1000 - 500;
 	let valid = true;
 	for (const b of buildings) {
 		if (Math.abs(x - b.x) < 40 && Math.abs(z - b.z) < 40) {
@@ -1675,9 +1999,9 @@ for (let i = 0; i < 5; i++) {
 }
 
 // Gras und Blumen
-for (let i = 0; i < 30; i++) {
-	const x = Math.random() * 1000 - 500;
-	const z = Math.random() * 1000 - 500;
+for (let i = 0; i < 60; i++) {
+	const x = Math.random() * 1400 - 700;
+	const z = Math.random() * 1400 - 700;
 	let valid = true;
 	for (const b of buildings) {
 		if (Math.abs(x - b.x) < 25 && Math.abs(z - b.z) < 25) {
@@ -1695,9 +2019,9 @@ for (let i = 0; i < 30; i++) {
 }
 
 // Bänke hinzufügen
-for (let i = 0; i < 12; i++) {
-	const x = Math.random() * 700 - 350;
-	const z = Math.random() * 700 - 350;
+for (let i = 0; i < 20; i++) {
+	const x = Math.random() * 1000 - 500;
+	const z = Math.random() * 1000 - 500;
 	let valid = true;
 	for (const b of buildings) {
 		if (Math.abs(x - b.x) < 20 && Math.abs(z - b.z) < 20) {
@@ -1711,9 +2035,9 @@ for (let i = 0; i < 12; i++) {
 }
 
 // Straßenlaternen hinzufügen
-for (let i = 0; i < 20; i++) {
-	const x = Math.random() * 600 - 300;
-	const z = Math.random() * 600 - 300;
+for (let i = 0; i < 32; i++) {
+	const x = Math.random() * 1000 - 500;
+	const z = Math.random() * 1000 - 500;
 	let valid = true;
 	for (const b of buildings) {
 		if (Math.abs(x - b.x) < 15 && Math.abs(z - b.z) < 15) {
@@ -1731,7 +2055,11 @@ const parks = [
 	{ x: 0, z: 80, size: 50 }, // Beim bestehenden Park-Gebäude
 	{ x: 150, z: -200, size: 35 },
 	{ x: -200, z: -150, size: 40 },
-	{ x: 250, z: 100, size: 45 }
+	{ x: 250, z: 100, size: 45 },
+	{ x: 420, z: -260, size: 55 },
+	{ x: -420, z: 260, size: 55 },
+	{ x: 320, z: 360, size: 48 },
+	{ x: -320, z: -360, size: 48 }
 ];
 
 for (const p of parks) {
@@ -2410,9 +2738,15 @@ scene.add(player);
 const npcs = [];
 const npcSpeeds = [];
 const npcTargets = [];
+const npcCrosswalkTargets = [];
+const npcCrosswalkReturnTargets = [];
+const npcCrosswalkCooldowns = [];
 const npcIsFalling = [];
 const npcFallTime = [];
 const npcIsChasing = [];
+
+const NPC_CROSSWALK_CHANCE = 0.18;
+const NPC_CROSSWALK_COOLDOWN_MS = 12000;
 
 function getValidSpawn() {
 	let x, z;
@@ -2460,13 +2794,16 @@ function addNPCs(count) {
 		npcSpeeds.push(0.08 + Math.random() * 0.07);
 		const tgt = getValidSpawn();
 		npcTargets.push({ x: tgt.x, z: tgt.z });
+		npcCrosswalkTargets.push(null);
+		npcCrosswalkReturnTargets.push(null);
+		npcCrosswalkCooldowns.push(0);
 		npcIsFalling.push(false);
 		npcFallTime.push(0);
 		npcIsChasing.push(false);
 	}
 }
 
-addNPCs(30); // vorher waren es 8
+addNPCs(60); // vorher waren es 30
 
 // Vögel hinzufügen
 const birds = [];
@@ -2593,6 +2930,9 @@ function animate() {
 	
 	// Automatische Polizei-Verfolgung prüfen
 	checkPoliceChase();
+	if (isInMysteryBasement && !mysteryBasementPoliceTriggered && Date.now() - mysteryBasementEnteredAt > 15000) {
+		startMysteryPoliceSearch();
+	}
 	
 	// Polizei-Fahrzeuge aktualisieren
 	updatePoliceCars();
@@ -2881,12 +3221,35 @@ function animate() {
 				break;
 			}
 		}
-		// Wenn NPC auf Straße, wähle neues Ziel
-		if (onStreet) {
+		const onZebraCrossing = isPointOnZebraCrossing(npc.position.x, npc.position.z);
+
+		// Normale NPCs dürfen Straßen nur über Zebrastreifen betreten
+		if (i >= 3 && onStreet && !onZebraCrossing) {
+			if (!npcCrosswalkTargets[i]) {
+				const now = Date.now();
+				const cooldownReady = now >= npcCrosswalkCooldowns[i];
+				if (cooldownReady && Math.random() < NPC_CROSSWALK_CHANCE) {
+					const crossing = getNearestZebraCrossing(npc.position.x, npc.position.z);
+					npcCrosswalkTargets[i] = { x: crossing.x, z: crossing.z };
+					npcCrosswalkReturnTargets[i] = { x: npcTargets[i].x, z: npcTargets[i].z };
+					npcTargets[i] = { x: crossing.x, z: crossing.z };
+					npcCrosswalkCooldowns[i] = now + NPC_CROSSWALK_COOLDOWN_MS;
+				} else {
+					npcTargets[i] = getValidSpawn();
+					npcCrosswalkCooldowns[i] = now + 3000;
+				}
+			}
+		} else if (i >= 3 && npcCrosswalkTargets[i] && onZebraCrossing) {
 			npcTargets[i] = {
-				x: Math.random() * 260 - 130,
-				z: Math.random() * 260 - 130
+				x: npcCrosswalkReturnTargets[i].x,
+				z: npcCrosswalkReturnTargets[i].z
 			};
+			npcCrosswalkTargets[i] = null;
+			npcCrosswalkReturnTargets[i] = null;
+		}
+
+		// Polizei darf weiter frei laufen; normale NPCs bewegen sich nur auf Straße, wenn sie den Zebrastreifen benutzen
+		if (onStreet && i >= 3 && !onZebraCrossing && !npcCrosswalkTargets[i]) {
 			continue;
 		}
 		// Wenn Spieler nahe (<7), NPC bleibt stehen und winkt mit beiden Armen
@@ -2934,6 +3297,8 @@ function animate() {
 	const px = player.position.x;
 	const pz = player.position.z;
 	const py = player.position.y + 1.8;
+	camera.fov = 75;
+	camera.updateProjectionMatrix();
 	const horizontalDistance = camDistance * Math.sin(camAngleX);
 	const cameraX = px - Math.sin(camAngleY) * horizontalDistance;
 	const cameraZ = pz - Math.cos(camAngleY) * horizontalDistance;
@@ -3019,6 +3384,23 @@ function animate() {
 	playerMarker.position.x = player.position.x;
 	playerMarker.position.z = player.position.z;
 	playerMarker.visible = true;
+
+	if (minimapFocusTarget) {
+		minimapCamera.position.x += (minimapFocusTarget.x - minimapCamera.position.x) * 0.2;
+		minimapCamera.position.z += (minimapFocusTarget.z - minimapCamera.position.z) * 0.2;
+		minimapCamera.position.y = 200;
+		minimapCamera.zoom += (minimapFocusZoom - minimapCamera.zoom) * 0.2;
+		minimapCamera.updateProjectionMatrix();
+		minimapCamera.lookAt(minimapFocusTarget.x, 0, minimapFocusTarget.z);
+		minimapFocusMarker.rotation.y += 0.04;
+	} else {
+		minimapCamera.position.x += (0 - minimapCamera.position.x) * 0.08;
+		minimapCamera.position.z += (0 - minimapCamera.position.z) * 0.08;
+		minimapCamera.position.y = 200;
+		minimapCamera.zoom += (1 - minimapCamera.zoom) * 0.12;
+		minimapCamera.updateProjectionMatrix();
+		minimapCamera.lookAt(0, 0, 0);
+	}
 
 	// Minimap rendern
 	minimapRenderer.render(scene, minimapCamera);
@@ -3106,43 +3488,288 @@ function setTimeSpeed(speed) {
 
 animate();
 
-// Job-System (einfach: vor dem Jobcenter Geld verdienen)
+// Job-System
+const jobLocations = [
+	{ name: 'Bank', x: 160, z: 140 },
+	{ name: 'Supermarkt', x: 80, z: -80 },
+	{ name: 'Park', x: 0, z: 180 },
+	{ name: 'Autohaus', x: -80, z: 200 },
+	{ name: 'Wohngebiet', x: 120, z: 0 },
+	{ name: 'Stadtrand', x: -140, z: -140 },
+	{ name: 'Platz', x: 0, z: 80 }
+];
+
+const jobSalarySteps = {
+	office: 10,
+	delivery: 15,
+	taxi: 20
+};
+
+let jobEarnings = JSON.parse(localStorage.getItem('jobEarnings')) || {
+	office: 30,
+	delivery: 40,
+	taxi: 60
+};
+
+let activeJob = null;
+let officeJobOverlay = null;
+let officeJobPrompt = null;
+let officeJobProgress = null;
+let officeJobButtonRow = null;
+let jobTargetMarker = null;
+
+const officeJobColors = [
+	{ name: 'Rot', hex: 0xff5555 },
+	{ name: 'Grün', hex: 0x55cc66 },
+	{ name: 'Blau', hex: 0x55aaff },
+	{ name: 'Gelb', hex: 0xffdd55 }
+];
+
+function refreshJobButtonLabels() {
+	officeJobBtn.textContent = `Bürojob (${jobEarnings.office}€)`;
+	deliveryJobBtn.textContent = `Lieferjob (${jobEarnings.delivery}€)`;
+	taxiJobBtn.textContent = `Taxijob (${jobEarnings.taxi}€)`;
+}
+
+function ensureJobTargetMarker() {
+	if (jobTargetMarker) return;
+	jobTargetMarker = new THREE.Mesh(
+		new THREE.CylinderGeometry(1.2, 1.2, 0.25, 10),
+		new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+	);
+	jobTargetMarker.position.y = 0.4;
+	jobTargetMarker.visible = false;
+	scene.add(jobTargetMarker);
+}
+
+function showJobTargetMarker(target, color) {
+	ensureJobTargetMarker();
+	jobTargetMarker.position.set(target.x, 0.4, target.z);
+	jobTargetMarker.material.color.setHex(color);
+	jobTargetMarker.visible = true;
+}
+
+function hideJobTargetMarker() {
+	if (jobTargetMarker) {
+		jobTargetMarker.visible = false;
+	}
+}
+
+function getRandomJobLocation(excludeName = '') {
+	const candidates = jobLocations.filter(location => location.name !== excludeName);
+	return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function ensureOfficeJobOverlay() {
+	if (officeJobOverlay) return;
+	officeJobOverlay = document.createElement('div');
+	officeJobOverlay.id = 'officeJobOverlay';
+	officeJobOverlay.style.cssText = `
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 12000;
+		background: rgba(20, 20, 24, 0.96);
+		color: #fff;
+		padding: 24px;
+		border-radius: 16px;
+		box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+		min-width: 360px;
+		text-align: center;
+		display: none;
+	`;
+	officeJobOverlay.innerHTML = `
+		<h2 style="margin-top:0;">Bürojob</h2>
+		<div id="officeJobPrompt" style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px;"></div>
+		<div id="officeJobProgress" style="margin-bottom: 16px;"></div>
+		<div id="officeJobButtons" style="display:grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 10px;"></div>
+		<p style="margin: 14px 0 0; opacity: 0.8;">Klicke die richtige Farbe. Nach jeder Runde wird das Gehalt höher.</p>
+	`;
+	document.body.appendChild(officeJobOverlay);
+	officeJobPrompt = officeJobOverlay.querySelector('#officeJobPrompt');
+	officeJobProgress = officeJobOverlay.querySelector('#officeJobProgress');
+	officeJobButtonRow = officeJobOverlay.querySelector('#officeJobButtons');
+}
+
+function renderOfficeJobRound() {
+	if (!activeJob || activeJob.type !== 'office') return;
+	const targetColor = officeJobColors[activeJob.targetIndex];
+	officeJobPrompt.textContent = `Drücke: ${targetColor.name}`;
+	officeJobProgress.textContent = `Runde ${activeJob.round + 1} von ${activeJob.totalRounds} | Fehler: ${activeJob.wrongAttempts}`;
+	officeJobButtonRow.innerHTML = '';
+	officeJobColors.forEach((color, index) => {
+		const button = document.createElement('button');
+		button.textContent = color.name;
+		button.style.cssText = `
+			padding: 14px 10px;
+			font-size: 1em;
+			border: none;
+			border-radius: 10px;
+			cursor: pointer;
+			font-weight: bold;
+			color: #111;
+			background: #${color.hex.toString(16).padStart(6, '0')};
+		`;
+		button.addEventListener('click', () => handleOfficeColorChoice(index));
+		officeJobButtonRow.appendChild(button);
+	});
+	officeJobOverlay.style.display = 'block';
+}
+
+function prepareNextOfficeRound() {
+	if (!activeJob || activeJob.type !== 'office') return;
+	let nextTargetIndex = Math.floor(Math.random() * officeJobColors.length);
+	if (activeJob.targetIndex !== undefined && officeJobColors.length > 1) {
+		while (nextTargetIndex === activeJob.targetIndex) {
+			nextTargetIndex = Math.floor(Math.random() * officeJobColors.length);
+		}
+	}
+	activeJob.targetIndex = nextTargetIndex;
+	renderOfficeJobRound();
+}
+
+function completeJob(jobType, successMessage) {
+	const reward = jobEarnings[jobType] || 0;
+	money += reward;
+	moneySpan.textContent = `Geld: ${money} €`;
+	jobEarnings[jobType] += jobSalarySteps[jobType];
+	refreshJobButtonLabels();
+	saveData();
+	showMessage(`${successMessage} +${reward}€`, 2500);
+	hideJobTargetMarker();
+	if (officeJobOverlay) {
+		officeJobOverlay.style.display = 'none';
+	}
+	activeJob = null;
+}
+
+function handleOfficeColorChoice(index) {
+	if (!activeJob || activeJob.type !== 'office') return;
+	if (index !== activeJob.targetIndex) {
+		activeJob.wrongAttempts += 1;
+		renderOfficeJobRound();
+		showMessage('Falsche Farbe. Versuch es nochmal.', 1500);
+		return;
+	}
+
+	activeJob.round += 1;
+	if (activeJob.round >= activeJob.totalRounds) {
+		completeJob('office', 'Bürojob erledigt!');
+		return;
+	}
+
+	prepareNextOfficeRound();
+	showMessage('Richtig! Nächste Farbe.', 1000);
+}
+
+function startOfficeJob() {
+	if (activeJob) {
+		showMessage('Beende zuerst deinen aktuellen Job.', 2500);
+		return;
+	}
+	jobPanel.style.display = 'none';
+	ensureOfficeJobOverlay();
+	activeJob = {
+		type: 'office',
+		round: 0,
+		totalRounds: 5,
+		wrongAttempts: 0,
+		targetIndex: 0
+	};
+	prepareNextOfficeRound();
+	showMessage('Bürojob gestartet. Drücke die richtige Farbe auf dem Bildschirm.', 3000);
+}
+
+function startDeliveryJob() {
+	if (activeJob) {
+		showMessage('Beende zuerst deinen aktuellen Job.', 2500);
+		return;
+	}
+	jobPanel.style.display = 'none';
+	const target = getRandomJobLocation('Jobcenter');
+	activeJob = {
+		type: 'delivery',
+		target,
+		startedAt: Date.now()
+	};
+	showJobTargetMarker(target, 0xffaa00);
+	showMessage(`Lieferjob gestartet: Bringe das Paket zu ${target.name}.`, 3000);
+}
+
+function startTaxiJob() {
+	if (activeJob) {
+		showMessage('Beende zuerst deinen aktuellen Job.', 2500);
+		return;
+	}
+	jobPanel.style.display = 'none';
+	const target = getRandomJobLocation('Jobcenter');
+	activeJob = {
+		type: 'taxi',
+		target,
+		startedAt: Date.now()
+	};
+	showJobTargetMarker(target, 0x9b59ff);
+	showMessage(`Taxijob gestartet: Bringe den Fahrgast zu ${target.name}.`, 3000);
+}
+
+function tryCompleteActiveJob() {
+	if (!activeJob) return false;
+
+	if (activeJob.type === 'delivery') {
+		if (isInVehicle) return false;
+		const distance = Math.sqrt(
+			Math.pow(player.position.x - activeJob.target.x, 2) +
+			Math.pow(player.position.z - activeJob.target.z, 2)
+		);
+		if (distance < 8) {
+			completeJob('delivery', `Paket bei ${activeJob.target.name} abgeliefert!`);
+			return true;
+		}
+		showMessage('Bringe das Paket zum Zielmarker.', 1500);
+		return false;
+	}
+
+	if (activeJob.type === 'taxi') {
+		if (!isInVehicle) {
+			return false;
+		}
+		const distance = Math.sqrt(
+			Math.pow(player.position.x - activeJob.target.x, 2) +
+			Math.pow(player.position.z - activeJob.target.z, 2)
+		);
+		if (distance < 10) {
+			completeJob('taxi', `Fahrgast bei ${activeJob.target.name} abgesetzt!`);
+			return true;
+		}
+		showMessage('Fahre den Fahrgast zum Zielmarker.', 1500);
+		return false;
+	}
+
+	return false;
+}
+
 function tryEarnMoney() {
+	if (activeJob) {
+		jobBtn.textContent = 'Job läuft!';
+		showMessage('Beende zuerst deinen aktuellen Job.', 2000);
+		setTimeout(() => jobBtn.textContent = 'Job machen', 1200);
+		return true;
+	}
+
 	const jobcenter = { x: -80, z: -80 };
 	const distX = Math.abs(player.position.x - jobcenter.x);
 	const distZ = Math.abs(player.position.z - (jobcenter.z + 10.3));
 	if (distX < 10 && distZ < 8) {
 		jobPanel.style.display = 'block';
-		jobBtn.textContent = 'Job-Menü geöffnet!';
+		refreshJobButtonLabels();
+		jobBtn.textContent = activeJob ? 'Job läuft!' : 'Job-Menü geöffnet!';
 		setTimeout(() => jobBtn.textContent = 'Job machen', 1200);
 		return true;
-	} else {
-		jobBtn.textContent = 'Gehe zum Jobcenter!';
-		setTimeout(() => jobBtn.textContent = 'Job machen', 1200);
-		return false;
 	}
-}
-
-function doOfficeJob() {
-	money += 30;
-	moneySpan.textContent = `Geld: ${money} €`;
-	saveData();
-	showMessage('Bürojob erledigt! +30€', 2000);
-	jobPanel.style.display = 'none';
-}
-
-function doDeliveryJob() {
-	// Lieferjob: Muss zu einem zufälligen Haus gehen
-	const targetHouse = { x: Math.random() * 400 - 200, z: Math.random() * 400 - 200 };
-	showMessage('Lieferjob: Gehe zu den Koordinaten und drücke E!', 3000);
-	// Hier könnte man ein Ziel-Tracking-System hinzufügen
-	setTimeout(() => {
-		money += 40;
-		moneySpan.textContent = `Geld: ${money} €`;
-		saveData();
-		showMessage('Paket zugestellt! +40€', 2000);
-	}, 5000); // Simuliert die Lieferzeit
-	jobPanel.style.display = 'none';
+	jobBtn.textContent = 'Gehe zum Jobcenter!';
+	setTimeout(() => jobBtn.textContent = 'Job machen', 1200);
+	return false;
 }
 
 function doCleaningJob() {
@@ -3153,17 +3780,11 @@ function doCleaningJob() {
 	jobPanel.style.display = 'none';
 }
 
-function doTaxiJob() {
-	money += 60;
-	moneySpan.textContent = `Geld: ${money} €`;
-	saveData();
-	showMessage('Fahrt beendet! +60€', 2000);
-	jobPanel.style.display = 'none';
-}
-
 function closeJob() {
 	jobPanel.style.display = 'none';
 }
+
+refreshJobButtonLabels();
 
 
 function tryBank() {
@@ -3288,25 +3909,284 @@ function buyDrink() {
 }
 
 function buyHouse() {
-	if (houseBought) {
-		alert('Du hast schon ein Haus!');
-		return;
+	openHouseShop();
+}
+
+let houseShopPanel = null;
+let houseShopList = null;
+
+function getNextFreeHousePlotIndex() {
+	for (let i = 0; i < housePlots.length; i++) {
+		const plotTaken = ownedHouses.some(house => house.plotIndex === i);
+		if (!plotTaken) return i;
 	}
-	if (money >= 100) {
-		money -= 100;
-		houseBought = true;
-		moneySpan.textContent = `Geld: ${money} €`;
-		saveData();
-		createPlayerHouse();
-		alert('Haus gekauft! Es steht bei -200, 200.');
-	} else {
-		alert('Zu wenig Geld!');
+	return -1;
+}
+
+function getPrimaryHousePlot() {
+	if (ownedHouses.length > 0) {
+		const plotIndex = ownedHouses[0].plotIndex;
+		return housePlots[plotIndex] || housePlots[0];
+	}
+	return housePlots[0];
+}
+
+function spawnOwnedHouses() {
+	playerHouses = [];
+	if (mysteryBasementRoom && mysteryBasementRoom.parent) {
+		mysteryBasementRoom.parent.remove(mysteryBasementRoom);
+	}
+	mysteryHouseState = null;
+	ownedHouses.forEach(houseData => {
+		const plot = housePlots[houseData.plotIndex] || housePlots[0];
+		const catalogEntry = houseCatalog.find(item => item.id === houseData.houseId) || houseCatalog[0];
+		const house = createBuilding(plot.x, plot.z, catalogEntry.color, catalogEntry.name, catalogEntry.houseType);
+		house.userData.isPlayerHouse = true;
+		house.userData.houseId = houseData.id;
+		playerHouses.push(house);
+		if (catalogEntry.houseType === 'mystery') {
+			mysteryHouseState = { plot, houseData };
+			spawnMysteryBasement(plot);
+		}
+	});
+	refreshHouseButtonLabel();
+}
+
+function refreshHouseButtonLabel() {
+	if (!buyHouseBtn) return;
+	buyHouseBtn.textContent = ownedHouses.length > 0 ? `Häuser (${ownedHouses.length})` : 'Häuser kaufen';
+}
+
+function ensureHouseShopPanel() {
+	if (houseShopPanel) return;
+	houseShopPanel = document.createElement('div');
+	houseShopPanel.id = 'houseShopPanel';
+	houseShopPanel.style.cssText = `
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 40;
+		background: rgba(25, 25, 32, 0.96);
+		color: #fff;
+		padding: 22px;
+		border-radius: 16px;
+		box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+		min-width: 520px;
+		max-width: 720px;
+		display: none;
+	`;
+	houseShopPanel.innerHTML = `
+		<h2 style="margin-top:0;">Hausmarkt</h2>
+		<p style="margin-top:0; opacity:0.85;">Wähle ein Haus aus. Jedes Kaufobjekt wird auf einem freien Grundstück gebaut.</p>
+		<div id="houseShopList" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;"></div>
+		<button id="closeHouseShop" style="margin-top:16px; padding: 10px 18px; border: none; border-radius: 8px; cursor:pointer;">Schließen</button>
+	`;
+	document.body.appendChild(houseShopPanel);
+	houseShopList = houseShopPanel.querySelector('#houseShopList');
+	houseShopPanel.querySelector('#closeHouseShop').addEventListener('click', closeHouseShop);
+}
+
+function renderHouseShop() {
+	ensureHouseShopPanel();
+	houseShopList.innerHTML = '';
+	const freePlotIndex = getNextFreeHousePlotIndex();
+	houseCatalog.forEach(house => {
+		const card = document.createElement('div');
+		card.style.cssText = `
+			background: rgba(255,255,255,0.06);
+			border: 1px solid rgba(255,255,255,0.12);
+			border-radius: 14px;
+			padding: 14px;
+			text-align: left;
+		`;
+		card.innerHTML = `
+			<div style="font-size: 1.15em; font-weight: bold; margin-bottom: 6px;">${house.name}</div>
+			<div style="opacity:0.85; margin-bottom: 8px;">${house.description}</div>
+			<div style="font-weight:bold; margin-bottom: 12px;">Preis: ${house.price}€</div>
+		`;
+		const button = document.createElement('button');
+		button.textContent = freePlotIndex >= 0 ? 'Kaufen' : 'Keine Grundstücke frei';
+		button.disabled = freePlotIndex < 0;
+		button.style.cssText = `
+			padding: 10px 14px;
+			border: none;
+			border-radius: 8px;
+			cursor: pointer;
+			background: ${button.disabled ? '#555' : '#4caf50'};
+			color: #fff;
+		`;
+		button.addEventListener('click', () => buyHouseType(house));
+		card.appendChild(button);
+		houseShopList.appendChild(card);
+	});
+	refreshHouseButtonLabel();
+}
+
+function openHouseShop() {
+	renderHouseShop();
+	houseShopPanel.style.display = 'block';
+}
+
+function closeHouseShop() {
+	if (houseShopPanel) {
+		houseShopPanel.style.display = 'none';
 	}
 }
 
-function createPlayerHouse() {
-	const house = createBuilding(-200, 200, 0x8B4513, 'Mein Haus', 'cottage');
-	// Gemütliches Cottage für das Spielerhaus
+function buyHouseType(house) {
+	const plotIndex = getNextFreeHousePlotIndex();
+	if (plotIndex < 0) {
+		showMessage('Keine freien Grundstücke mehr verfügbar.', 2500);
+		return;
+	}
+	if (money < house.price) {
+		showMessage(`Zu wenig Geld! Du brauchst ${house.price}€ für dieses Haus.`, 2500);
+		return;
+	}
+
+	money -= house.price;
+	moneySpan.textContent = `Geld: ${money} €`;
+	const houseData = {
+		id: Date.now() + Math.random(),
+		houseId: house.id,
+		plotIndex
+	};
+	ownedHouses.push(houseData);
+	houseBought = true;
+	const plot = housePlots[plotIndex];
+	createBuilding(plot.x, plot.z, house.color, house.name, house.houseType);
+	if (house.houseType === 'mystery') {
+		mysteryHouseState = { plot, houseData };
+		spawnMysteryBasement(plot);
+	}
+	saveData();
+	refreshHouseButtonLabel();
+	showMessage(`${house.name} gekauft! Es steht auf ${plot.name}.`, 3500);
+	renderHouseShop();
+}
+
+function spawnMysteryBasement(plot) {
+	if (mysteryBasementRoom && mysteryBasementRoom.parent) {
+		mysteryBasementRoom.parent.remove(mysteryBasementRoom);
+	}
+
+	const basement = new THREE.Group();
+	basement.position.set(plot.x, -20, plot.z);
+
+	const floor = new THREE.Mesh(
+		new THREE.BoxGeometry(26, 0.4, 26),
+		new THREE.MeshPhongMaterial({ color: 0x111111 })
+	);
+	floor.position.y = 0;
+	basement.add(floor);
+
+	const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x262626 });
+	const backWall = new THREE.Mesh(new THREE.BoxGeometry(26, 10, 0.4), wallMaterial);
+	backWall.position.set(0, 5, -13);
+	basement.add(backWall);
+	const frontWall = new THREE.Mesh(new THREE.BoxGeometry(26, 10, 0.4), wallMaterial);
+	frontWall.position.set(0, 5, 13);
+	basement.add(frontWall);
+	const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 10, 26), wallMaterial);
+	leftWall.position.set(-13, 5, 0);
+	basement.add(leftWall);
+	const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 10, 26), wallMaterial);
+	rightWall.position.set(13, 5, 0);
+	basement.add(rightWall);
+
+	const roof = new THREE.Mesh(
+		new THREE.BoxGeometry(26, 0.5, 26),
+		new THREE.MeshPhongMaterial({ color: 0x0a0a0a })
+	);
+	roof.position.y = 10;
+	basement.add(roof);
+
+	mysteryBasementBox = new THREE.Mesh(
+		new THREE.BoxGeometry(2, 2, 2),
+		new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0x553300 })
+	);
+	mysteryBasementBox.position.set(0, 1, 0);
+	mysteryBasementBox.userData.isMysteryBox = true;
+	basement.add(mysteryBasementBox);
+
+	mysteryBasementExit = new THREE.Mesh(
+		new THREE.BoxGeometry(3, 4, 0.5),
+		new THREE.MeshPhongMaterial({ color: 0x444444 })
+	);
+	mysteryBasementExit.position.set(-8, 2, 8);
+	mysteryBasementExit.userData.isMysteryExit = true;
+	basement.add(mysteryBasementExit);
+
+	const glow = new THREE.PointLight(0x9b59ff, 0.9, 30);
+	glow.position.set(0, 6, 0);
+	basement.add(glow);
+
+	scene.add(basement);
+	mysteryBasementRoom = basement;
+	mysteryBasementEnteredAt = 0;
+	mysteryBasementPoliceTriggered = false;
+	mysteryBoxRewardCooldown = 0;
+}
+
+function enterMysteryBasement() {
+	if (!mysteryHouseState || !mysteryBasementRoom) return;
+	isInMysteryBasement = true;
+	mysteryBasementEnteredAt = Date.now();
+	mysteryBasementPoliceTriggered = false;
+	player.position.set(mysteryHouseState.plot.x, -18.5, mysteryHouseState.plot.z);
+	showMessage('Du bist im Keller. Drücke E an der Box.', 2500);
+}
+
+function exitMysteryBasement() {
+	if (!mysteryHouseState) return;
+	isInMysteryBasement = false;
+	player.position.set(mysteryHouseState.plot.x, 0, mysteryHouseState.plot.z + 12);
+	showMessage('Du bist aus dem Keller heraus.', 2000);
+}
+
+function collectMysteryBox() {
+	const now = Date.now();
+	if (now < mysteryBoxRewardCooldown) return;
+	const distance = Math.sqrt(
+		Math.pow(player.position.x - mysteryBasementBox.position.x - mysteryBasementRoom.position.x, 2) +
+		Math.pow(player.position.z - mysteryBasementBox.position.z - mysteryBasementRoom.position.z, 2)
+	);
+	if (distance > 5) {
+		showMessage('Gehe näher an die Box.', 1500);
+		return;
+	}
+	money += 2000;
+	moneySpan.textContent = `Geld: ${money} €`;
+	mysteryBoxRewardCooldown = now + 250;
+	saveData();
+	showMessage('2000€ gefunden!', 2000);
+	if (!mysteryBasementPoliceTriggered && now - mysteryBasementEnteredAt > 15000) {
+		startMysteryPoliceSearch();
+	}
+}
+
+function startMysteryPoliceSearch() {
+	if (mysteryBasementPoliceTriggered) return;
+	mysteryBasementPoliceTriggered = true;
+	policeAlert = true;
+	wantedLevel = Math.max(wantedLevel, 1);
+	updateWantedLevelDisplay();
+	showMessage('🚔 Jemand hat den Keller bemerkt. Eine kleine Polizei-Suche beginnt.', 4000);
+
+	if (mysteryPoliceUnits.length === 0 && mysteryHouseState) {
+		const plot = mysteryHouseState.plot;
+		const car = createPoliceCar(plot.x - 35, plot.z - 25);
+		scene.add(car);
+		mysteryPoliceUnits.push(car);
+
+		setTimeout(() => {
+			const cop1 = createFootPolice(plot.x - 20, plot.z - 10);
+			const cop2 = createFootPolice(plot.x + 18, plot.z + 8);
+			footPolice.push(cop1, cop2);
+			mysteryPoliceUnits.push(cop1.mesh, cop2.mesh);
+		}, 1200);
+	}
 }
 
 function closeShop() {
@@ -3652,9 +4532,10 @@ function buyBus() {
 }
 
 function getHouseSpawnPosition() {
-	// Position neben dem Spielerhaus (-200, 200)
-	const houseX = -200;
-	const houseZ = 200;
+	// Position neben dem primären Spielerhaus
+	const primaryHouse = getPrimaryHousePlot();
+	const houseX = primaryHouse.x;
+	const houseZ = primaryHouse.z;
 	
 	// Berechne eine Position neben dem Haus
 	// Verschiedene Positionen für verschiedene Autos
@@ -3861,68 +4742,26 @@ function updateVehicleMovement() {
 	player.position.copy(currentVehicle.position);
 	player.position.y = currentVehicle.position.y + 2;
 
-	// Verbesserte Kamerasteuerung
+	// Fahrzeug-Kamera mit derselben Third-Person-Logik wie zu Fuß
 	const px = currentVehicle.position.x;
 	const pz = currentVehicle.position.z;
-	const py = currentVehicle.position.y + 4;
-
-	// Dynamischer Kamera-Abstand basierend auf Geschwindigkeit
-	const baseOffset = 8;
-	const speedOffset = Math.abs(vehicleSpeed) * 3;
-	const cameraOffset = baseOffset + speedOffset;
-
-	const cameraX = px - Math.sin(currentVehicle.rotation.y) * cameraOffset;
-	const cameraZ = pz - Math.cos(currentVehicle.rotation.y) * cameraOffset;
-
-	// Geschwindigkeitsabhängige Kameraglättung
-	const lerpFactor = Math.max(0.05, 0.15 - Math.abs(vehicleSpeed) * 0.1);
-
-	const currentCamX = camera.position.x;
-	const currentCamZ = camera.position.z;
-
-	const newCamX = currentCamX + (cameraX - currentCamX) * lerpFactor;
-	const newCamZ = currentCamZ + (cameraZ - currentCamZ) * lerpFactor;
-
-	// Dynamische Kamerahöhe
-	const baseHeight = 6;
-	const speedHeight = Math.abs(vehicleSpeed) * 2;
-	const cameraHeight = baseHeight + speedHeight;
-
-	camera.position.set(newCamX, py + cameraHeight, newCamZ);
-
-	// Kamera schaut auf das Fahrzeug
-	const lookAhead = 5 + Math.abs(vehicleSpeed) * 2; // Look-ahead basierend auf Geschwindigkeit
-	const lookAtX = px + Math.sin(currentVehicle.rotation.y) * lookAhead;
-	const lookAtZ = pz + Math.cos(currentVehicle.rotation.y) * lookAhead;
-
-	// Sanfte Kameraziel-Bewegung
-	const lookLerpFactor = 0.1;
-	if (typeof cameraTarget !== 'undefined') {
-		const currentLookAtX = cameraTarget.x;
-		const currentLookAtZ = cameraTarget.z;
-
-		const newLookAtX = currentLookAtX + (lookAtX - currentLookAtX) * lookLerpFactor;
-		const newLookAtZ = currentLookAtZ + (lookAtZ - currentLookAtZ) * lookLerpFactor;
-
-		cameraTarget.x = newLookAtX;
-		cameraTarget.y = py;
-		cameraTarget.z = newLookAtZ;
-
-		camera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-	} else {
-		// Fallback für lookAt
-		const lookTarget = new THREE.Vector3(lookAtX, py, lookAtZ);
-		const currentLookTarget = new THREE.Vector3();
-		camera.getWorldDirection(currentLookTarget);
-		currentLookTarget.multiplyScalar(-1).add(camera.position);
-
-		const newLookX = currentLookTarget.x + (lookTarget.x - currentLookTarget.x) * lookLerpFactor;
-		const newLookY = currentLookTarget.y + (lookTarget.y - currentLookTarget.y) * lookLerpFactor;
-		const newLookZ = currentLookTarget.z + (lookTarget.z - currentLookTarget.z) * lookLerpFactor;
-
-		const finalLookTarget = new THREE.Vector3(newLookX, newLookY, newLookZ);
-		camera.lookAt(finalLookTarget);
-	}
+	const py = currentVehicle.position.y + 2.4;
+	const vehicleCamDistance = 14;
+	camera.fov = 82;
+	camera.updateProjectionMatrix();
+	const cameraYaw = currentVehicle.rotation.y + (camAngleY - Math.PI / 2);
+	const horizontalDistance = vehicleCamDistance * Math.sin(camAngleX);
+	const cameraX = px - Math.sin(cameraYaw) * horizontalDistance;
+	const cameraZ = pz - Math.cos(cameraYaw) * horizontalDistance;
+	const cameraY = py + vehicleCamDistance * Math.cos(camAngleX);
+	const cameraLerp = 0.18;
+	camera.position.x += (cameraX - camera.position.x) * cameraLerp;
+	camera.position.y += (cameraY - camera.position.y) * cameraLerp;
+	camera.position.z += (cameraZ - camera.position.z) * cameraLerp;
+	cameraTarget.x = px;
+	cameraTarget.y = py;
+	cameraTarget.z = pz;
+	camera.lookAt(cameraTarget);
 }
 
 function checkVehicleInteraction() {
@@ -4370,8 +5209,9 @@ function loadOwnedCars() {
 	// Gekaufte Autos laden und neben dem Haus platzieren
 	ownedCars.forEach((carData, index) => {
 		// Berechne Position neben dem Haus basierend auf dem Index
-		const houseX = -200;
-		const houseZ = 200;
+		const primaryHouse = getPrimaryHousePlot();
+		const houseX = primaryHouse.x;
+		const houseZ = primaryHouse.z;
 		
 		// Verschiedene Positionen für verschiedene Autos
 		const positions = [
@@ -4431,10 +5271,10 @@ buyBreadBtn.addEventListener('click', buyBread);
 buyDrinkBtn.addEventListener('click', buyDrink);
 buyHouseBtn.addEventListener('click', buyHouse);
 closeShopBtn.addEventListener('click', closeShop);
-officeJobBtn.addEventListener('click', doOfficeJob);
-deliveryJobBtn.addEventListener('click', doDeliveryJob);
+officeJobBtn.addEventListener('click', startOfficeJob);
+deliveryJobBtn.addEventListener('click', startDeliveryJob);
 cleaningJobBtn.addEventListener('click', doCleaningJob);
-taxiJobBtn.addEventListener('click', doTaxiJob);
+taxiJobBtn.addEventListener('click', startTaxiJob);
 closeJobBtn.addEventListener('click', closeJob);
 dialogOption1.addEventListener('click', () => selectDialogOption(0));
 dialogOption2.addEventListener('click', () => selectDialogOption(1));
@@ -4478,6 +5318,52 @@ testFootPoliceBtn.addEventListener('click', testFootPolice);
 
 document.addEventListener('keydown', e => {
 	if (e.key.toLowerCase() === 'e') {
+		if (isInMysteryBasement) {
+			if (mysteryBasementBox && mysteryBasementRoom) {
+				const boxX = mysteryBasementRoom.position.x + mysteryBasementBox.position.x;
+				const boxZ = mysteryBasementRoom.position.z + mysteryBasementBox.position.z;
+				const boxDistance = Math.sqrt(
+					Math.pow(player.position.x - boxX, 2) +
+					Math.pow(player.position.z - boxZ, 2)
+				);
+				if (boxDistance < 5) {
+					collectMysteryBox();
+					return;
+				}
+			}
+
+			if (mysteryBasementExit && mysteryBasementRoom) {
+				const exitX = mysteryBasementRoom.position.x + mysteryBasementExit.position.x;
+				const exitZ = mysteryBasementRoom.position.z + mysteryBasementExit.position.z;
+				const exitDistance = Math.sqrt(
+					Math.pow(player.position.x - exitX, 2) +
+					Math.pow(player.position.z - exitZ, 2)
+				);
+				if (exitDistance < 6) {
+					exitMysteryBasement();
+					return;
+				}
+			}
+
+			showMessage('Suche die Box oder den Ausgang im Keller.', 1500);
+			return;
+		}
+
+		if (mysteryHouseState && !isInMysteryBasement && !isInVehicle) {
+			const houseDistance = Math.sqrt(
+				Math.pow(player.position.x - mysteryHouseState.plot.x, 2) +
+				Math.pow(player.position.z - mysteryHouseState.plot.z, 2)
+			);
+			if (houseDistance < 14) {
+				enterMysteryBasement();
+				return;
+			}
+		}
+
+		if (tryCompleteActiveJob()) {
+			return;
+		}
+		
 		// Fahrzeug-Interaktion zuerst prüfen
 		if (isInVehicle) {
 			// Aus dem Fahrzeug aussteigen
@@ -4842,6 +5728,7 @@ function checkPoliceChase() {
 // Polizei-Alarm zurücksetzen (für Testzwecke)
 function resetPoliceAlert() {
 	policeAlert = false;
+	mysteryBasementPoliceTriggered = false;
 	
 	// Polizei-Warnung entfernen
 	const warning = document.getElementById('policeWarning');
@@ -4854,6 +5741,7 @@ function resetPoliceAlert() {
 	
 	// Fuß-Polizisten entfernen
 	removeFootPolice();
+	mysteryPoliceUnits = [];
 	
 	updateBankRobberyInfo();
 	showMessage('✅ Polizei-Alarm zurückgesetzt', 3000);
