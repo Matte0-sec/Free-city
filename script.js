@@ -2408,13 +2408,183 @@ const npcDialogs = {
 				options: ["Süß!", "Okay", "Bye"]
 			}
 		]
+	},
+	5: { // Tourist
+		name: "Tourist",
+		dialogs: [
+			{
+				text: "Wow, diese Stadt ist größer als ich dachte!",
+				options: ["Ja, ziemlich groß", "Erst seit kurzem", "Auf Wiedersehen"]
+			},
+			{
+				text: "Ich suche gerade die schönsten Orte für Fotos.",
+				options: ["Viel Spaß dabei", "Nimm den Park", "Tschüss"]
+			},
+			{
+				text: "Vielleicht fahre ich später noch zum Bahnhof. Danke!",
+				options: ["Gerne", "Okay", "Bye"]
+			}
+		]
+	},
+	6: { // Handwerker
+		name: "Handwerker",
+		dialogs: [
+			{
+				text: "Ich bin gerade auf dem Weg zu einem Auftrag.",
+				options: ["Viel Erfolg", "Was machst du?", "Auf Wiedersehen"]
+			},
+			{
+				text: "Die Stadt wächst schnell. Das hält uns ganz schön auf Trab.",
+				options: ["Kann ich glauben", "Interessant", "Tschüss"]
+			},
+			{
+				text: "Wenn du etwas bauen willst, brauchst du gutes Werkzeug.",
+				options: ["Stimmt", "Okay", "Bye"]
+			}
+		]
+	},
+	7: { // Student
+		name: "Student",
+		dialogs: [
+			{
+				text: "Ich muss eigentlich noch lernen, bin aber erstmal spazieren gegangen.",
+				options: ["Klassisch", "Wofür lernst du?", "Auf Wiedersehen"]
+			},
+			{
+				text: "Die Bibliothek ist echt praktisch, wenn man Ruhe braucht.",
+				options: ["Stimmt", "Ich gehe auch oft hin", "Tschüss"]
+			},
+			{
+				text: "Nach der Prüfung gönne ich mir erstmal was zu essen.",
+				options: ["Verdient", "Viel Glück", "Bye"]
+			}
+		]
+	},
+	8: { // Verkäuferin
+		name: "Verkäuferin",
+		dialogs: [
+			{
+				text: "Willkommen! Heute ist viel los im Laden.",
+				options: ["Das glaube ich", "Was verkauft ihr?", "Auf Wiedersehen"]
+			},
+			{
+				text: "Frische Ware geht immer zuerst weg.",
+				options: ["Klar", "Interessant", "Tschüss"]
+			},
+			{
+				text: "Wenn du etwas brauchst, schau einfach vorbei.",
+				options: ["Mach ich", "Danke", "Bye"]
+			}
+		]
+	},
+	9: { // Taxifahrer
+		name: "Taxifahrer",
+		dialogs: [
+			{
+				text: "Die besten Fahrten sind die, bei denen niemand zu spät kommt.",
+				options: ["Genau", "Fährst du oft?", "Auf Wiedersehen"]
+			},
+			{
+				text: "Ich kenne fast jede Ecke der Stadt.",
+				options: ["Praktisch", "Zeig mal", "Tschüss"]
+			},
+			{
+				text: "Am Abend ist hier immer der meiste Verkehr.",
+				options: ["Stimmt", "Danke", "Bye"]
+			}
+		]
+	},
+	10: { // Sportler
+		name: "Sportler",
+		dialogs: [
+			{
+				text: "Ich war gerade joggen. Die Luft hier ist gut!",
+				options: ["Cool", "Wie oft?", "Auf Wiedersehen"]
+			},
+			{
+				text: "Ein bisschen Bewegung tut jedem gut.",
+				options: ["Stimmt", "Ich sollte auch", "Tschüss"]
+			},
+			{
+				text: "Die Parks sind perfekt zum Trainieren.",
+				options: ["Ja", "Danke", "Bye"]
+			}
+		]
+	},
+	11: { // Nachbar
+		name: "Nachbar",
+		dialogs: [
+			{
+				text: "Na, schon das neue Viertel erkundet?",
+				options: ["Ja", "Noch nicht", "Auf Wiedersehen"]
+			},
+			{
+				text: "Hier kennt man sich langsam alle ein bisschen.",
+				options: ["Das ist nett", "Scheint so", "Tschüss"]
+			},
+			{
+				text: "Wenn du Fragen hast, frag ruhig rum.",
+				options: ["Mach ich", "Danke", "Bye"]
+			}
+		]
+	},
+	12: { // Auftraggeber
+		name: "Auftraggeber",
+		dialogs: [
+			{
+				text: "Hey! Ich brauche jemanden für einen Auftrag!",
+				options: ["Ich helfe", "Was gibt es?", "Später"]
+			},
+			{
+				text: "Wenn du das erledigst, bekommst du direkt Geld.",
+				options: ["Klingt gut", "Wie viel?", "Tschüss"]
+			},
+			{
+				text: "Komm näher und ich gebe dir die Aufgabe.",
+				options: ["Okay", "Ich bin da", "Bye"]
+			}
+		]
 	}
 };
 
+const npcDialogKeys = Object.keys(npcDialogs);
+
+function getNpcDialogData(npcIndex) {
+	const npc = npcs[npcIndex];
+	const dialogKey = npc && npc.userData ? npc.userData.dialogKey : null;
+	return npcDialogs[dialogKey] || npcDialogs[npcIndex % npcDialogKeys.length] || npcDialogs[0];
+}
+
+function createRequesterCallout(text) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 256;
+	canvas.height = 96;
+	const ctx = canvas.getContext('2d');
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = 'rgba(255, 220, 80, 0.95)';
+	ctx.strokeStyle = '#2b1b00';
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.roundRect(10, 10, 236, 66, 18);
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle = '#1a1a1a';
+	ctx.font = 'bold 24px Arial';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText(text, 128, 43);
+	const texture = new THREE.CanvasTexture(canvas);
+	const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+	const sprite = new THREE.Sprite(material);
+	sprite.scale.set(7, 2.6, 1);
+	sprite.position.set(0, 5.2, 0);
+	return sprite;
+}
+
 function startDialog(npcIndex) {
 	currentNPC = npcIndex;
-	currentDialogState = 0;
-	const npcData = npcDialogs[npcIndex % Object.keys(npcDialogs).length];
+	const npcData = getNpcDialogData(npcIndex);
+	currentDialogState = npcs[npcIndex] && npcs[npcIndex].userData && npcs[npcIndex].userData.isRequester ? 'quest' : 0;
 	
 	npcName.textContent = npcData.name;
 	updateDialog();
@@ -2423,7 +2593,7 @@ function startDialog(npcIndex) {
 }
 
 function updateDialog() {
-	const npcData = npcDialogs[currentNPC % Object.keys(npcDialogs).length];
+	const npcData = getNpcDialogData(currentNPC);
 	
 	// Spezielle Behandlung für Quest-Dialoge
 	if (currentDialogState === 'quest') {
@@ -2460,7 +2630,7 @@ function updateDialog() {
 }
 
 function selectDialogOption(optionIndex) {
-	const npcData = npcDialogs[currentNPC % Object.keys(npcDialogs).length];
+	const npcData = getNpcDialogData(currentNPC);
 	
 	// Quest-Dialog Behandlung
 	if (currentDialogState === 'quest') {
@@ -2523,6 +2693,120 @@ function checkNPCInteraction() {
 	return -1;
 }
 
+let faceSeedCounter = 0;
+
+function drawDistinctFace(ctx, seed, tone) {
+	const variant = seed % 8;
+	const faceHue = tone || '#e1b899';
+	const grad = ctx.createRadialGradient(32, 32, 10, 32, 32, 32);
+	grad.addColorStop(0, '#fff');
+	grad.addColorStop(1, faceHue);
+	ctx.fillStyle = grad;
+	ctx.beginPath();
+	ctx.arc(32, 32, 30, 0, 2 * Math.PI);
+	ctx.fill();
+
+	ctx.strokeStyle = '#222';
+	ctx.lineWidth = 3;
+
+	if (variant === 0) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.arc(22, 32, 4, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(42, 32, 4, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#8b0000';
+		ctx.lineWidth = 4;
+		ctx.beginPath(); ctx.arc(32, 43, 11, 0, Math.PI); ctx.stroke();
+	} else if (variant === 1) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.ellipse(22, 31, 5, 7, -0.1, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.ellipse(42, 31, 5, 7, 0.1, 0, 2 * Math.PI); ctx.fill();
+		ctx.fillStyle = '#fff';
+		ctx.beginPath(); ctx.arc(24, 30, 1.8, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(44, 30, 1.8, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#a52a2a';
+		ctx.lineWidth = 4;
+		ctx.beginPath(); ctx.arc(32, 45, 10, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+	} else if (variant === 2) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.ellipse(22, 30, 4, 6, 0, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.ellipse(42, 30, 4, 6, 0, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#663300';
+		ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.moveTo(14, 24); ctx.lineTo(28, 23); ctx.stroke();
+		ctx.beginPath(); ctx.moveTo(36, 23); ctx.lineTo(50, 24); ctx.stroke();
+		ctx.strokeStyle = '#222';
+		ctx.lineWidth = 4;
+		ctx.beginPath(); ctx.moveTo(25, 47); ctx.quadraticCurveTo(32, 42, 39, 47); ctx.stroke();
+	} else if (variant === 3) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.arc(22, 31, 3, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(42, 31, 3, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#444';
+		ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.moveTo(18, 24); ctx.lineTo(28, 28); ctx.stroke();
+		ctx.beginPath(); ctx.moveTo(34, 28); ctx.lineTo(46, 24); ctx.stroke();
+		ctx.strokeStyle = '#8b0000';
+		ctx.lineWidth = 4;
+		ctx.beginPath(); ctx.arc(32, 44, 11, Math.PI, 2 * Math.PI); ctx.stroke();
+	} else if (variant === 4) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.ellipse(20, 31, 4.5, 6.5, -0.15, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.ellipse(44, 31, 4.5, 6.5, 0.15, 0, 2 * Math.PI); ctx.fill();
+		ctx.fillStyle = '#fff';
+		ctx.beginPath(); ctx.arc(20, 30, 1.5, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(44, 30, 1.5, 0, 2 * Math.PI); ctx.fill();
+		ctx.fillStyle = '#8b5a2b';
+		ctx.beginPath(); ctx.arc(32, 42, 6, 0, 2 * Math.PI); ctx.fill();
+	} else if (variant === 5) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.arc(20, 32, 3.5, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(44, 32, 3.5, 0, 2 * Math.PI); ctx.fill();
+		ctx.fillStyle = '#fff';
+		ctx.beginPath(); ctx.arc(20, 31, 1, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(44, 31, 1, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#a52a2a';
+		ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.moveTo(24, 45); ctx.lineTo(40, 45); ctx.stroke();
+		ctx.fillStyle = '#7f4f24';
+		ctx.beginPath(); ctx.arc(12, 32, 2, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(52, 32, 2, 0, 2 * Math.PI); ctx.fill();
+	} else if (variant === 6) {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.ellipse(22, 31, 5, 6, 0.2, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.ellipse(42, 31, 5, 6, -0.2, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#222';
+		ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.moveTo(18, 22); ctx.lineTo(29, 24); ctx.stroke();
+		ctx.beginPath(); ctx.moveTo(35, 24); ctx.lineTo(46, 22); ctx.stroke();
+		ctx.strokeStyle = '#555';
+		ctx.lineWidth = 2;
+		ctx.beginPath(); ctx.arc(32, 46, 10, 0, Math.PI); ctx.stroke();
+		ctx.strokeStyle = '#333';
+		ctx.beginPath(); ctx.moveTo(29, 38); ctx.lineTo(35, 38); ctx.stroke();
+	} else {
+		ctx.fillStyle = '#222';
+		ctx.beginPath(); ctx.arc(22, 32, 4, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(42, 32, 4, 0, 2 * Math.PI); ctx.fill();
+		ctx.fillStyle = '#fff';
+		ctx.beginPath(); ctx.arc(24, 31, 1, 0, 2 * Math.PI); ctx.fill();
+		ctx.beginPath(); ctx.arc(44, 31, 1, 0, 2 * Math.PI); ctx.fill();
+		ctx.strokeStyle = '#222';
+		ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.moveTo(18, 24); ctx.lineTo(28, 25); ctx.stroke();
+		ctx.beginPath(); ctx.moveTo(36, 25); ctx.lineTo(46, 24); ctx.stroke();
+		ctx.strokeStyle = '#a52a2a';
+		ctx.lineWidth = 4;
+		ctx.beginPath(); ctx.arc(32, 44, 12, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+	}
+
+	if (variant === 1 || variant === 4) {
+		ctx.strokeStyle = '#8b5a2b';
+		ctx.lineWidth = 2;
+		ctx.beginPath(); ctx.arc(19, 31, 1, 0, 2 * Math.PI); ctx.stroke();
+		ctx.beginPath(); ctx.arc(45, 31, 1, 0, 2 * Math.PI); ctx.stroke();
+	}
+}
+
 function createHuman() {
 	const human = new THREE.Group();
 	// Zufällige Farben
@@ -2547,37 +2831,12 @@ function createHuman() {
 	head.position.y = 3.5;
 	human.add(head);
 
-	// Gesicht (schöner: Augen, Mund, Hautschattierung)
+	// Gesicht
 	const faceCanvas = document.createElement('canvas');
 	faceCanvas.width = 64;
 	faceCanvas.height = 64;
 	const ctx = faceCanvas.getContext('2d');
-	// Hautschattierung
-	const grad = ctx.createRadialGradient(32, 32, 10, 32, 32, 32);
-	grad.addColorStop(0, '#fff');
-	grad.addColorStop(1, '#e1b899');
-	ctx.fillStyle = grad;
-	ctx.beginPath(); ctx.arc(32, 32, 30, 0, 2 * Math.PI); ctx.fill();
-	// Augen
-	ctx.save();
-	ctx.translate(0, 8);
-	ctx.fillStyle = '#222';
-	ctx.beginPath(); ctx.ellipse(22, 32, 6, 8, 0, 0, 2 * Math.PI); ctx.fill();
-	ctx.beginPath(); ctx.ellipse(42, 32, 6, 8, 0, 0, 2 * Math.PI); ctx.fill();
-	ctx.restore();
-	// Glanzpunkte
-	ctx.fillStyle = '#fff';
-	ctx.beginPath(); ctx.arc(25, 30, 2, 0, 2 * Math.PI); ctx.fill();
-	ctx.beginPath(); ctx.arc(45, 30, 2, 0, 2 * Math.PI); ctx.fill();
-	// Mund
-	ctx.strokeStyle = '#a52a2a';
-	ctx.lineWidth = 4;
-	ctx.beginPath(); ctx.arc(32, 44, 12, 0, Math.PI); ctx.stroke();
-	// Augenbrauen
-	ctx.strokeStyle = '#222';
-	ctx.lineWidth = 3;
-	ctx.beginPath(); ctx.moveTo(16, 22); ctx.lineTo(28, 24); ctx.stroke();
-	ctx.beginPath(); ctx.moveTo(36, 24); ctx.lineTo(48, 22); ctx.stroke();
+	drawDistinctFace(ctx, faceSeedCounter++);
 	const faceTex = new THREE.CanvasTexture(faceCanvas);
 	const faceMat = new THREE.MeshBasicMaterial({ map: faceTex });
 	const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.38), faceMat);
@@ -2670,29 +2929,12 @@ function createPolice() {
 	head.position.y = 3.5;
 	human.add(head);
 
-	// Gesicht (wie normal)
+	// Gesicht
 	const faceCanvas = document.createElement('canvas');
 	faceCanvas.width = 64;
 	faceCanvas.height = 64;
 	const ctx = faceCanvas.getContext('2d');
-	const grad = ctx.createRadialGradient(32, 32, 10, 32, 32, 32);
-	grad.addColorStop(0, '#fff');
-	grad.addColorStop(1, '#e1b899');
-	ctx.fillStyle = grad;
-	ctx.beginPath(); ctx.arc(32, 32, 30, 0, 2 * Math.PI); ctx.fill();
-	ctx.fillStyle = '#222';
-	ctx.beginPath(); ctx.ellipse(22, 32, 6, 8, 0, 0, 2 * Math.PI); ctx.fill();
-	ctx.beginPath(); ctx.ellipse(42, 32, 6, 8, 0, 0, 2 * Math.PI); ctx.fill();
-	ctx.fillStyle = '#fff';
-	ctx.beginPath(); ctx.arc(25, 30, 2, 0, 2 * Math.PI); ctx.fill();
-	ctx.beginPath(); ctx.arc(45, 30, 2, 0, 2 * Math.PI); ctx.fill();
-	ctx.strokeStyle = '#a52a2a';
-	ctx.lineWidth = 4;
-	ctx.beginPath(); ctx.arc(32, 44, 12, 0, Math.PI); ctx.stroke();
-	ctx.strokeStyle = '#222';
-	ctx.lineWidth = 3;
-	ctx.beginPath(); ctx.moveTo(16, 22); ctx.lineTo(28, 24); ctx.stroke();
-	ctx.beginPath(); ctx.moveTo(36, 24); ctx.lineTo(48, 22); ctx.stroke();
+	drawDistinctFace(ctx, faceSeedCounter++, '#d7b18a');
 	const faceTex = new THREE.CanvasTexture(faceCanvas);
 	const faceMat = new THREE.MeshBasicMaterial({ map: faceTex });
 	const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.38), faceMat);
@@ -2779,6 +3021,8 @@ function getValidSpawn() {
 }
 
 function addNPCs(count) {
+	const civilianDialogKeys = ['0', '1', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+	const policeDialogKeys = ['2', '2', '2', '9'];
 	for (let i = 0; i < count; i++) {
 		let npc;
 		let pos;
@@ -2786,9 +3030,11 @@ function addNPCs(count) {
 			// Polizisten nahe Polizei
 			npc = createPolice();
 			pos = { x: 140 + (Math.random() - 0.5) * 20, z: -220 + (Math.random() - 0.5) * 20 };
+			npc.userData.dialogKey = policeDialogKeys[i % policeDialogKeys.length];
 		} else {
 			npc = createHuman();
 			pos = getValidSpawn();
+			npc.userData.dialogKey = civilianDialogKeys[i % civilianDialogKeys.length];
 		}
 		npc.position.set(pos.x, 0, pos.z);
 		scene.add(npc);
@@ -2806,6 +3052,38 @@ function addNPCs(count) {
 }
 
 addNPCs(60); // vorher waren es 30
+
+function addRequesterNPCs() {
+	const requesterSpots = [
+		{ x: -115, z: -96 },
+		{ x: 95, z: -96 },
+		{ x: 150, z: 108 },
+		{ x: -156, z: 108 }
+	];
+
+	requesterSpots.forEach((spot, index) => {
+		const requester = createHuman();
+		requester.position.set(spot.x, 0, spot.z);
+		requester.userData.id = `requester_${index}`;
+		requester.userData.dialogKey = '12';
+		requester.userData.isRequester = true;
+		requester.userData.isStationary = true;
+		requester.userData.shoutTimer = Date.now() + index * 2500;
+		requester.add(createRequesterCallout('AUFTRAG!'));
+		scene.add(requester);
+		npcs.push(requester);
+		npcSpeeds.push(0);
+		npcTargets.push({ x: spot.x, z: spot.z });
+		npcCrosswalkTargets.push(null);
+		npcCrosswalkReturnTargets.push(null);
+		npcCrosswalkCooldowns.push(0);
+		npcIsFalling.push(false);
+		npcFallTime.push(0);
+		npcIsChasing.push(false);
+	});
+}
+
+addRequesterNPCs();
 
 // Vögel hinzufügen
 const birds = [];
@@ -3130,6 +3408,13 @@ function animate() {
 	// NPC-Bewegung
 	for (let i = 0; i < npcs.length; i++) {
 		const npc = npcs[i];
+		if (npc.userData && npc.userData.isRequester) {
+			const callout = npc.children.find(child => child.isSprite);
+			if (callout) {
+				callout.position.y = 5.2 + Math.sin(Date.now() * 0.003 + i) * 0.15;
+			}
+			continue;
+		}
 		// Fall-Animation
 		if (npcIsFalling[i]) {
 			const elapsed = Date.now() - npcFallTime[i];
