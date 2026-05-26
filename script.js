@@ -691,7 +691,7 @@ const houseCatalog = [
 	{ id: 'family', name: 'Familienhaus', price: 2500, color: 0x9db4c0, houseType: 'default', description: 'Mehr Platz für Alltag und Familie.' },
 	{ id: 'villa', name: 'Villa', price: 6500, color: 0xf0e2c6, houseType: 'villa', description: 'Groß, hell und deutlich luxuriöser.' },
 	{ id: 'luxury', name: 'Luxusvilla', price: 12000, color: 0xd9d9d9, houseType: 'modern', description: 'Das teuerste und auffälligste Haus.' },
-	{ id: 'mystery', name: 'Mysteriöses Haus', price: 9000, color: 0x2f3640, houseType: 'mystery', description: 'Unheimlich, verborgen und mit einem Keller.' }
+	{ id: 'mystery', name: 'Mysteriöses Haus', price: 1111, color: 0x2f3640, houseType: 'mystery', description: 'Unheimlich, verborgen und mit einem Keller.' }
 ];
 
 let mysteryHouseState = null;
