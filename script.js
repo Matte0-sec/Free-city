@@ -530,6 +530,8 @@ let policeAlert = false;
 let securityHacked = false;
 let jailTime = 0;
 let wantedLevel = 0;
+let policeLoseSightSince = 0;
+let policeWarningShownForCurrentAlert = false;
 
 // Fahrzeug-System
 let ownedCars = JSON.parse(localStorage.getItem('ownedCars')) || [];
@@ -2893,7 +2895,7 @@ function animate() {
 		}
 		
 		// Zusätzliche visuelle Warnung im UI
-		if (!document.getElementById('policeWarning')) {
+		if (!policeWarningShownForCurrentAlert && !document.getElementById('policeWarning')) {
 			const warning = document.createElement('div');
 			warning.id = 'policeWarning';
 			warning.innerHTML = '🚔 POLIZEI-ALARM!<br>DU WIRST GESUCHT!<br>LAUF WEG!';
@@ -2915,13 +2917,14 @@ function animate() {
 				line-height: 1.4;
 			`;
 			document.body.appendChild(warning);
+			policeWarningShownForCurrentAlert = true;
 			
-			// Warnung nach 10 Sekunden entfernen
+			// Warnung nach kurzer Zeit entfernen
 			setTimeout(() => {
 				if (warning.parentNode) {
 					warning.parentNode.removeChild(warning);
 				}
-			}, 10000);
+			}, 2500);
 		}
 		
 		// Wanted-Level-Anzeige aktualisieren
@@ -2930,6 +2933,7 @@ function animate() {
 	
 	// Automatische Polizei-Verfolgung prüfen
 	checkPoliceChase();
+	updatePoliceLoseInterest();
 	if (isInMysteryBasement && !mysteryBasementPoliceTriggered && Date.now() - mysteryBasementEnteredAt > 15000) {
 		startMysteryPoliceSearch();
 	}
@@ -2945,7 +2949,7 @@ function animate() {
 	
 	if (!isInVehicle) {
 		// Bewegung mit Kollisionsabfrage (relativ zur Kameraperspektive)
-		let speed = 0.5;
+		let speed = keys['shift'] ? 0.85 : 0.5;
 		let nextX = player.position.x;
 		let nextZ = player.position.z;
 		let isWalking = false;
@@ -5303,18 +5307,28 @@ bankRobberyBtn.addEventListener('click', openBankRobberyPanel);
 closeBankRobberyBtn.addEventListener('click', () => {
 	bankRobberyPanel.style.display = 'none';
 });
-robBankBtn.addEventListener('click', robBank);
-guaranteedRobBtn.addEventListener('click', guaranteedRobBank);
-hackSecurityBtn.addEventListener('click', hackSecurity);
-escapeBtn.addEventListener('click', planEscape);
-testMoneyBtn.addEventListener('click', testMoneySystem);
-refillNpcBtn.addEventListener('click', refillNpcBank);
-triggerPoliceBtn.addEventListener('click', triggerPoliceAlert);
-resetPoliceBtn.addEventListener('click', resetPoliceAlert);
-policeStatusBtn.addEventListener('click', showPoliceStatus);
-guaranteedJailBtn.addEventListener('click', guaranteedJail);
-testPoliceCarsBtn.addEventListener('click', testPoliceCars);
-testFootPoliceBtn.addEventListener('click', testFootPolice);
+
+function closeBankRobberyPanel() {
+	bankRobberyPanel.style.display = 'none';
+}
+
+function runBankRobberyAction(action) {
+	action();
+	closeBankRobberyPanel();
+}
+
+robBankBtn.addEventListener('click', () => runBankRobberyAction(robBank));
+guaranteedRobBtn.addEventListener('click', () => runBankRobberyAction(guaranteedRobBank));
+hackSecurityBtn.addEventListener('click', () => runBankRobberyAction(hackSecurity));
+escapeBtn.addEventListener('click', () => runBankRobberyAction(planEscape));
+testMoneyBtn.addEventListener('click', () => runBankRobberyAction(testMoneySystem));
+refillNpcBtn.addEventListener('click', () => runBankRobberyAction(refillNpcBank));
+triggerPoliceBtn.addEventListener('click', () => runBankRobberyAction(triggerPoliceAlert));
+resetPoliceBtn.addEventListener('click', () => runBankRobberyAction(resetPoliceAlert));
+policeStatusBtn.addEventListener('click', () => runBankRobberyAction(showPoliceStatus));
+guaranteedJailBtn.addEventListener('click', () => runBankRobberyAction(guaranteedJail));
+testPoliceCarsBtn.addEventListener('click', () => runBankRobberyAction(testPoliceCars));
+testFootPoliceBtn.addEventListener('click', () => runBankRobberyAction(testFootPolice));
 
 document.addEventListener('keydown', e => {
 	if (e.key.toLowerCase() === 'e') {
@@ -5725,9 +5739,58 @@ function checkPoliceChase() {
 	}
 }
 
+function updatePoliceLoseInterest() {
+	if (!policeAlert || wantedLevel < 1) {
+		policeLoseSightSince = 0;
+		return;
+	}
+
+	let nearestPoliceDistance = Infinity;
+	for (const car of policeCars) {
+		const dx = player.position.x - car.position.x;
+		const dz = player.position.z - car.position.z;
+		const distance = Math.sqrt(dx * dx + dz * dz);
+		if (distance < nearestPoliceDistance) nearestPoliceDistance = distance;
+	}
+	for (const cop of footPolice) {
+		if (!cop.mesh) continue;
+		const dx = player.position.x - cop.mesh.position.x;
+		const dz = player.position.z - cop.mesh.position.z;
+		const distance = Math.sqrt(dx * dx + dz * dz);
+		if (distance < nearestPoliceDistance) nearestPoliceDistance = distance;
+	}
+
+	const loseSightDistance = 220;
+	const loseSightDelay = wantedLevel >= 3 ? 8000 : 4500;
+
+	if (nearestPoliceDistance > loseSightDistance) {
+		if (!policeLoseSightSince) {
+			policeLoseSightSince = Date.now();
+		}
+		if (Date.now() - policeLoseSightSince >= loseSightDelay) {
+			wantedLevel = Math.max(0, wantedLevel - 1);
+			policeLoseSightSince = 0;
+			if (wantedLevel === 0) {
+				resetPoliceAlert();
+				showMessage('🚓 Die Polizei hat dich aus den Augen verloren.', 3000);
+			} else {
+				removePoliceCars();
+				removeFootPolice();
+				updateWantedLevelDisplay();
+				updateBankRobberyInfo();
+				showMessage('🚓 Die Polizei hat dich fast verloren. Wanted sinkt.', 2500);
+			}
+		}
+	} else {
+		policeLoseSightSince = 0;
+	}
+}
+
 // Polizei-Alarm zurücksetzen (für Testzwecke)
 function resetPoliceAlert() {
 	policeAlert = false;
+	policeLoseSightSince = 0;
+	policeWarningShownForCurrentAlert = false;
 	mysteryBasementPoliceTriggered = false;
 	
 	// Polizei-Warnung entfernen
