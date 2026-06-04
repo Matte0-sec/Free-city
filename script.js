@@ -42,6 +42,8 @@ const timeNormalBtn = document.getElementById('timeNormal');
 const timeFastBtn = document.getElementById('timeFast');
 const timeVeryFastBtn = document.getElementById('timeVeryFast');
 const wantedLevelSpan = document.getElementById('wantedLevel');
+const healthLabel = document.getElementById('healthLabel');
+const healthFill = document.getElementById('healthFill');
 let gameTime = 720; // Start bei 12:00 (12 * 60 Minuten)
 let timeSpeed = 1; // Minuten pro Sekunde
 
@@ -393,6 +395,7 @@ function updateFootPolice() {
 		if (distance < FOOT_POLICE_CATCH_DISTANCE) {
 			showMessage(`👮‍♂️ POLIZIST HAT DICH GEFASST!`, 3000);
 			showMessage(`⏰ Du kommst ins Gefängnis!`, 3000);
+			damagePlayer(25, 'Polizei');
 			
 			// Gefängnisstrafe
 			jailTime = Math.floor(Math.random() * 6) + 3; // 3-9 Minuten (kürzer als Fahrzeuge)
@@ -462,6 +465,7 @@ function updatePoliceCars() {
 		if (distance < POLICE_CATCH_DISTANCE) {
 			showMessage(`🚔 POLIZEI HAT DICH GEFASST!`, 3000);
 			showMessage(`⏰ Du kommst ins Gefängnis!`, 3000);
+			damagePlayer(35, 'Polizei');
 			
 			// Gefängnisstrafe
 			jailTime = Math.floor(Math.random() * 8) + 5; // 5-13 Minuten
@@ -532,6 +536,7 @@ let jailTime = 0;
 let wantedLevel = 0;
 let policeLoseSightSince = 0;
 let policeWarningShownForCurrentAlert = false;
+let playerHealth = parseInt(localStorage.getItem('playerHealth')) || 100;
 
 // Fahrzeug-System
 let ownedCars = JSON.parse(localStorage.getItem('ownedCars')) || [];
@@ -820,6 +825,7 @@ scene.background = new THREE.Color(0x87CEEB); // Schöner blauer Himmel
 // Initialisierung
 moneySpan.textContent = `Geld: ${money} €`;
 bankMoneySpan.textContent = `Bank: ${bankMoney} €`;
+updateHealthDisplay();
 refreshHouseButtonLabel();
 
 if (houseBought) {
@@ -833,6 +839,7 @@ function saveData() {
 	localStorage.setItem('money', money);
 	localStorage.setItem('bankMoney', bankMoney);
 	localStorage.setItem('npcBankMoney', npcBankMoney);
+	localStorage.setItem('playerHealth', playerHealth);
 	localStorage.setItem('jobEarnings', JSON.stringify(jobEarnings));
 	localStorage.setItem('ownedHouses', JSON.stringify(ownedHouses));
 	houseBought = ownedHouses.length > 0;
@@ -3763,6 +3770,28 @@ function updateWantedLevelDisplay() {
 	wantedLevelSpan.style.color = wantedColor;
 }
 
+function updateHealthDisplay() {
+	if (!healthLabel || !healthFill) return;
+	const clampedHealth = Math.max(0, Math.min(100, playerHealth));
+	healthLabel.textContent = `Leben: ${clampedHealth}%`;
+	healthFill.style.width = `${clampedHealth}%`;
+	healthFill.classList.remove('low', 'mid', 'high');
+	if (clampedHealth <= 25) {
+		healthFill.classList.add('low');
+	} else if (clampedHealth <= 60) {
+		healthFill.classList.add('mid');
+	} else {
+		healthFill.classList.add('high');
+	}
+}
+
+function damagePlayer(amount, reason = 'Schaden') {
+	playerHealth = Math.max(0, playerHealth - amount);
+	updateHealthDisplay();
+	saveData();
+	showMessage(`❤️ -${amount}% Leben${reason ? ` durch ${reason}` : ''}`, 2500);
+}
+
 function setTimeSpeed(speed) {
 	timeSpeed = speed;
 	let speedText = '';
@@ -5790,6 +5819,7 @@ function robBank() {
 	} else {
 		wantedLevel += 1;
 		showMessage('❌ Bankraub fehlgeschlagen! Sicherheitssystem hat dich erwischt!', 3000);
+		damagePlayer(15, 'Bankraub');
 		console.log('Bankraub fehlgeschlagen');
 		
 		// Sofortiger Polizei-Alarm bei Fehlschlag
@@ -5874,6 +5904,7 @@ function hackSecurity() {
 	} else {
 		wantedLevel += 1;
 		showMessage('❌ Hacking fehlgeschlagen! Das System hat dich bemerkt.', 3000);
+		damagePlayer(10, 'Hacking');
 		
 		// Chance auf sofortigen Alarm
 		if (Math.random() < 0.3) {
@@ -5948,6 +5979,9 @@ function startJailTime() {
 			wantedLevel = 0;
 			policeAlert = false;
 			securityHacked = false;
+			playerHealth = 100;
+			updateHealthDisplay();
+			saveData();
 			
 			// Gefängnis-Overlay entfernen
 			const overlay = document.getElementById('jailOverlay');
