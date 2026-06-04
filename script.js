@@ -42,6 +42,7 @@ const timeNormalBtn = document.getElementById('timeNormal');
 const timeFastBtn = document.getElementById('timeFast');
 const timeVeryFastBtn = document.getElementById('timeVeryFast');
 const wantedLevelSpan = document.getElementById('wantedLevel');
+const policeChaseTimerSpan = document.getElementById('policeChaseTimer');
 const healthLabel = document.getElementById('healthLabel');
 const healthFill = document.getElementById('healthFill');
 let gameTime = 720; // Start bei 12:00 (12 * 60 Minuten)
@@ -3749,6 +3750,7 @@ function updateTime() {
 	
 	// Wanted-Level aktualisieren
 	updateWantedLevelDisplay();
+	updatePoliceChaseTimerDisplay();
 }
 
 function updateWantedLevelDisplay() {
@@ -3768,6 +3770,30 @@ function updateWantedLevelDisplay() {
 	
 	wantedLevelSpan.innerHTML = `${wantedIcon} Wanted: ${wantedLevel}`;
 	wantedLevelSpan.style.color = wantedColor;
+}
+
+function updatePoliceChaseTimerDisplay() {
+	if (!policeChaseTimerSpan) return;
+
+	if (!policeAlert || wantedLevel < 1) {
+		policeChaseTimerSpan.textContent = 'Jagd: endet nicht';
+		policeChaseTimerSpan.style.color = '#bbb';
+		return;
+	}
+
+	if (!policeLoseSightSince) {
+		policeChaseTimerSpan.textContent = 'Jagd: Polizei sieht dich';
+		policeChaseTimerSpan.style.color = '#ffcc00';
+		return;
+	}
+
+	const loseSightDelay = wantedLevel >= 3 ? 8000 : 4500;
+	const elapsed = Date.now() - policeLoseSightSince;
+	const remaining = Math.max(0, loseSightDelay - elapsed);
+	const remainingSeconds = (remaining / 1000).toFixed(1);
+
+	policeChaseTimerSpan.textContent = `Jagd: ${remainingSeconds}s`;
+	policeChaseTimerSpan.style.color = remaining <= 1000 ? '#ff5555' : '#ffcc00';
 }
 
 function updateHealthDisplay() {
@@ -6061,6 +6087,7 @@ function checkPoliceChase() {
 function updatePoliceLoseInterest() {
 	if (!policeAlert || wantedLevel < 1) {
 		policeLoseSightSince = 0;
+		updatePoliceChaseTimerDisplay();
 		return;
 	}
 
@@ -6086,6 +6113,7 @@ function updatePoliceLoseInterest() {
 		if (!policeLoseSightSince) {
 			policeLoseSightSince = Date.now();
 		}
+		updatePoliceChaseTimerDisplay();
 		if (Date.now() - policeLoseSightSince >= loseSightDelay) {
 			wantedLevel = Math.max(0, wantedLevel - 1);
 			policeLoseSightSince = 0;
@@ -6096,12 +6124,14 @@ function updatePoliceLoseInterest() {
 				removePoliceCars();
 				removeFootPolice();
 				updateWantedLevelDisplay();
+				updatePoliceChaseTimerDisplay();
 				updateBankRobberyInfo();
 				showMessage('🚓 Die Polizei hat dich fast verloren. Wanted sinkt.', 2500);
 			}
 		}
 	} else {
 		policeLoseSightSince = 0;
+		updatePoliceChaseTimerDisplay();
 	}
 }
 
@@ -6126,6 +6156,7 @@ function resetPoliceAlert() {
 	mysteryPoliceUnits = [];
 	
 	updateBankRobberyInfo();
+	updatePoliceChaseTimerDisplay();
 	showMessage('✅ Polizei-Alarm zurückgesetzt', 3000);
 	console.log('Police alert reset:', policeAlert);
 }
