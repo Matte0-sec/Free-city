@@ -34,6 +34,9 @@ const mapSearchInput = document.getElementById('mapSearchInput');
 const mapSearchBtn = document.getElementById('mapSearchBtn');
 const mapClearBtn = document.getElementById('mapClearBtn');
 const mapSearchResult = document.getElementById('mapSearchResult');
+const fashionShopPanel = document.getElementById('fashionShopPanel');
+const closeFashionShopBtn = document.getElementById('closeFashionShop');
+const fashionOptionButtons = document.querySelectorAll('.fashionOption');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -1955,6 +1958,7 @@ const buildings = [
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
 	{ x: 0, z: -260, color: 0x336666, label: 'Bahnhof', houseType: 'flat' },
 	{ x: -80, z: 200, color: 0xFF6B35, label: 'Autohaus', houseType: 'flat' },
+	{ x: 0, z: -80, color: 0xd84d86, label: 'Modeshop', houseType: 'flat' },
 	{ x: 360, z: -340, color: 0x9c88ff, label: 'Wohnhaus A', houseType: 'flat' },
 	{ x: 420, z: -140, color: 0x7ed6df, label: 'Wohnhaus B', houseType: 'colonial' },
 	{ x: 340, z: 260, color: 0xf6e58d, label: 'Wohnhaus C', houseType: 'default' },
@@ -2992,7 +2996,110 @@ function createPolice() {
 // Spieler
 const player = createHuman();
 player.position.set(0, 0, 0);
+player.children[0].name = 'playerBody';
+player.children[1].name = 'playerHead';
+player.children[4].name = 'playerLeftArm';
+player.children[5].name = 'playerRightArm';
+player.children[6].name = 'playerLeftLeg';
+player.children[7].name = 'playerRightLeg';
 scene.add(player);
+
+const fashionCatalog = {
+	outfit: {
+		street: { price: 70, color: 0x3567c8, legColor: 0x202531 },
+		elegant: { price: 120, color: 0x261c39, legColor: 0x16121e },
+		sport: { price: 95, color: 0xd7483f, legColor: 0x303840 }
+	},
+	skin: {
+		light: { price: 40, color: 0xffe0b2 },
+		warm: { price: 40, color: 0xc68642 },
+		dark: { price: 40, color: 0x8d5524 }
+	},
+	hat: {
+		cap: { price: 80, color: 0x263d78 },
+		beanie: { price: 90, color: 0x293232 },
+		crown: { price: 150, color: 0xf3c538 }
+	}
+};
+
+function getFashionState() {
+	try {
+		return JSON.parse(getGameData('fashionState')) || { owned: [], selected: {} };
+	} catch {
+		return { owned: [], selected: {} };
+	}
+}
+
+let fashionState = getFashionState();
+
+function createPlayerHat(type, color) {
+	const hat = new THREE.Group();
+	hat.name = 'playerHat';
+	const material = new THREE.MeshPhongMaterial({ color });
+	if (type === 'cap') {
+		const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), material);
+		cap.position.y = 4.02;
+		hat.add(cap);
+		const brim = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.09, 0.45), material);
+		brim.position.set(0, 3.93, 0.52);
+		hat.add(brim);
+	} else if (type === 'beanie') {
+		const beanie = new THREE.Mesh(new THREE.SphereGeometry(0.64, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.72), material);
+		beanie.position.y = 3.95;
+		hat.add(beanie);
+	} else if (type === 'crown') {
+		const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 0.35, 6, 1, true), material);
+		crown.position.y = 4.12;
+		hat.add(crown);
+	}
+	player.add(hat);
+}
+
+function applyFashion() {
+	const { selected } = fashionState;
+	const outfit = fashionCatalog.outfit[selected.outfit];
+	const skin = fashionCatalog.skin[selected.skin];
+	const hat = fashionCatalog.hat[selected.hat];
+	if (outfit) {
+		player.getObjectByName('playerBody').material.color.setHex(outfit.color);
+		player.getObjectByName('playerLeftLeg').material.color.setHex(outfit.legColor);
+		player.getObjectByName('playerRightLeg').material.color.setHex(outfit.legColor);
+	}
+	if (skin) {
+		player.getObjectByName('playerHead').material.color.setHex(skin.color);
+		player.getObjectByName('playerLeftArm').material.color.setHex(skin.color);
+		player.getObjectByName('playerRightArm').material.color.setHex(skin.color);
+	}
+	const oldHat = player.getObjectByName('playerHat');
+	if (oldHat) player.remove(oldHat);
+	if (hat) createPlayerHat(selected.hat, hat.color);
+	fashionOptionButtons.forEach(button => {
+		button.classList.toggle('selected', fashionState.selected[button.dataset.category] === button.dataset.value);
+		button.classList.toggle('owned', fashionState.owned.includes(`${button.dataset.category}:${button.dataset.value}`));
+	});
+}
+
+function buyFashionItem(category, value) {
+	const item = fashionCatalog[category]?.[value];
+	if (!item) return;
+	const itemId = `${category}:${value}`;
+	if (!fashionState.owned.includes(itemId)) {
+		if (money < item.price) {
+			showMessage(`Zu wenig Geld! Du brauchst ${item.price}€.`, 2500);
+			return;
+		}
+		money -= item.price;
+		moneySpan.textContent = `Geld: ${money} €`;
+		fashionState.owned.push(itemId);
+		saveData();
+		showMessage(`Gekauft: ${value === 'crown' ? 'Krone' : 'neuer Look'}!`, 2200);
+	}
+	fashionState.selected[category] = value;
+	setGameData('fashionState', JSON.stringify(fashionState));
+	applyFashion();
+}
+
+applyFashion();
 
 // NPCs
 const npcs = [];
@@ -3639,6 +3746,17 @@ function animate() {
 		carDealerPanel.style.display = 'block';
 	} else {
 		carDealerPanel.style.display = 'none';
+	}
+
+	const fashionShop = { x: 0, z: -80 };
+	const distToFashionShop = Math.sqrt(
+		Math.pow(player.position.x - fashionShop.x, 2) +
+		Math.pow(player.position.z - (fashionShop.z + 10.3), 2)
+	);
+	if (distToFashionShop < 10) {
+		fashionShopPanel.style.display = 'block';
+	} else {
+		fashionShopPanel.style.display = 'none';
 	}
 
 	// Vögel animieren
@@ -5637,6 +5755,12 @@ questBtn.addEventListener('click', () => {
 });
 closeQuestBtn.addEventListener('click', () => {
 	questPanel.style.display = 'none';
+});
+fashionOptionButtons.forEach(button => {
+	button.addEventListener('click', () => buyFashionItem(button.dataset.category, button.dataset.value));
+});
+closeFashionShopBtn.addEventListener('click', () => {
+	fashionShopPanel.style.display = 'none';
 });
 
 // Autohändler Event-Listener

@@ -447,6 +447,83 @@ h1 {
 	font-size: 1.4em;
 	text-align: center;
 }
+#fashionShopPanel {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	z-index: 1000;
+	box-sizing: border-box;
+	width: min(92vw, 390px);
+	max-height: calc(100vh - 40px);
+	overflow-y: auto;
+	padding: 18px;
+	border: 2px solid #e4669b;
+	border-radius: 8px;
+	background: rgba(44, 22, 42, 0.96);
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+	text-align: left;
+}
+
+#fashionShopPanel h2 {
+	margin: 0;
+	color: #ffb9d4;
+	text-align: center;
+}
+
+.fashionShopHint {
+	margin: 6px 0 14px;
+	color: #f2dce6;
+	text-align: center;
+}
+
+.fashionCategory {
+	margin-top: 14px;
+}
+
+.fashionCategory h3 {
+	margin: 0 0 7px;
+	color: #ffe2ef;
+	font-size: 1em;
+}
+
+.fashionOption {
+	width: 100%;
+	margin: 3px 0;
+	padding: 9px 11px;
+	border: 1px solid #b34d77;
+	border-radius: 5px;
+	background: #642b4b;
+	color: #fff;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.fashionOption:hover {
+	background: #84345f;
+}
+
+.fashionOption.owned {
+	border-color: #e9c45e;
+}
+
+.fashionOption.selected {
+	background: #e4669b;
+	color: #2c1020;
+	font-weight: bold;
+}
+
+#closeFashionShop {
+	width: 100%;
+	margin-top: 16px;
+	padding: 9px;
+	border: 0;
+	border-radius: 5px;
+	background: #5d5d67;
+	color: #fff;
+	font: inherit;
+	cursor: pointer;
+}
 #carList {
 	max-height: 400px;
 	overflow-y: auto;
