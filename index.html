@@ -8,6 +8,18 @@
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
 </head>
 <body>
+	<div id="loginOverlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+		<form id="loginForm" class="loginPanel">
+			<h2 id="loginTitle">Free City Konto</h2>
+			<p>Mit deinem Benutzernamen und PIN bleibt dein Geld, deine Autos und deine Häuser erhalten.</p>
+			<label for="usernameInput">Benutzername</label>
+			<input id="usernameInput" name="username" type="text" maxlength="24" autocomplete="username" required>
+			<label for="pinInput">Dreistelliger PIN</label>
+			<input id="pinInput" name="pin" type="password" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" autocomplete="current-password" required>
+			<p id="loginMessage" class="loginMessage" aria-live="polite"></p>
+			<button type="submit">Anmelden / Konto erstellen</button>
+		</form>
+	</div>
 	<h1>Free City 3D</h1>
 	<div id="gameContainer"></div>
 	<div id="mapNavigator">
@@ -148,6 +160,69 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js"></script>
+	<script>
+		(() => {
+			const accountsKey = 'freeCity.accounts';
+			const legacyKeys = ['money', 'bankMoney', 'npcBankMoney', 'playerHealth', 'jobEarnings', 'ownedHouses', 'houseBought', 'ownedCars'];
+			const form = document.getElementById('loginForm');
+			const usernameInput = document.getElementById('usernameInput');
+			const pinInput = document.getElementById('pinInput');
+			const message = document.getElementById('loginMessage');
+
+			function getAccounts() {
+				try {
+					return JSON.parse(localStorage.getItem(accountsKey)) || {};
+				} catch {
+					return {};
+				}
+			}
+
+			function startGame(accountId) {
+				window.freeCityAccountId = accountId;
+				document.getElementById('loginOverlay').remove();
+				const gameScript = document.createElement('script');
+				gameScript.src = 'script.js';
+				document.body.appendChild(gameScript);
+			}
+
+			form.addEventListener('submit', event => {
+				event.preventDefault();
+				const username = usernameInput.value.trim();
+				const pin = pinInput.value;
+				if (username.length < 2) {
+					message.textContent = 'Der Benutzername muss mindestens 2 Zeichen haben.';
+					return;
+				}
+				if (!/^\d{3}$/.test(pin)) {
+					message.textContent = 'Der PIN muss genau drei Ziffern haben.';
+					return;
+				}
+
+				const accounts = getAccounts();
+				const accountId = encodeURIComponent(username.toLocaleLowerCase());
+				const account = accounts[accountId];
+				if (account && account.pin !== pin) {
+					message.textContent = 'Benutzername oder PIN ist nicht korrekt.';
+					pinInput.value = '';
+					pinInput.focus();
+					return;
+				}
+
+				if (!account) {
+					const isFirstAccount = Object.keys(accounts).length === 0;
+					accounts[accountId] = { username, pin };
+					localStorage.setItem(accountsKey, JSON.stringify(accounts));
+					if (isFirstAccount) {
+						legacyKeys.forEach(key => {
+							const value = localStorage.getItem(key);
+							if (value !== null) localStorage.setItem(`freeCity.account.${accountId}.${key}`, value);
+						});
+					}
+				}
+
+				startGame(accountId);
+			});
+		})();
+	</script>
 </body>
 </html>

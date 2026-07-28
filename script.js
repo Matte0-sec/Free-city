@@ -35,6 +35,16 @@ const mapSearchBtn = document.getElementById('mapSearchBtn');
 const mapClearBtn = document.getElementById('mapClearBtn');
 const mapSearchResult = document.getElementById('mapSearchResult');
 
+const accountStoragePrefix = `freeCity.account.${window.freeCityAccountId}.`;
+
+function getGameData(key) {
+	return localStorage.getItem(accountStoragePrefix + key);
+}
+
+function setGameData(key, value) {
+	localStorage.setItem(accountStoragePrefix + key, value);
+}
+
 // Uhrzeit-System
 const timeDisplay = document.getElementById('timeDisplay');
 const timePauseBtn = document.getElementById('timePause');
@@ -537,10 +547,10 @@ let jailTime = 0;
 let wantedLevel = 0;
 let policeLoseSightSince = 0;
 let policeWarningShownForCurrentAlert = false;
-let playerHealth = parseInt(localStorage.getItem('playerHealth')) || 100;
+let playerHealth = parseInt(getGameData('playerHealth')) || 100;
 
 // Fahrzeug-System
-let ownedCars = JSON.parse(localStorage.getItem('ownedCars')) || [];
+let ownedCars = JSON.parse(getGameData('ownedCars')) || [];
 let currentVehicle = null;
 let currentVehicleType = null; // Neuer Typ-Tracker
 let isInVehicle = false;
@@ -671,18 +681,18 @@ const availableQuests = [
 		npcDialog: "Dieser Brief muss dringend zur Bank. Hilfst du mir?"
 	}
 ];
-let money = parseInt(localStorage.getItem('money')) || 0;
-let bankMoney = parseInt(localStorage.getItem('bankMoney')) || 0;
-let npcBankMoney = parseInt(localStorage.getItem('npcBankMoney')) || 5000; // NPCs haben 5000€ Startgeld
+let money = parseInt(getGameData('money')) || 0;
+let bankMoney = parseInt(getGameData('bankMoney')) || 0;
+let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 5000€ Startgeld
 
 // Sicherstellen, dass NPC-Bank genug Geld hat
 if (npcBankMoney < 1000) {
 	npcBankMoney = 5000;
-	localStorage.setItem('npcBankMoney', npcBankMoney);
+	setGameData('npcBankMoney', npcBankMoney);
 }
 
-let houseBought = localStorage.getItem('houseBought') === 'true';
-let ownedHouses = JSON.parse(localStorage.getItem('ownedHouses')) || [];
+let houseBought = getGameData('houseBought') === 'true';
+let ownedHouses = JSON.parse(getGameData('ownedHouses')) || [];
 let playerHouses = [];
 
 const housePlots = [
@@ -837,14 +847,14 @@ if (houseBought) {
 setupCarDealer();
 
 function saveData() {
-	localStorage.setItem('money', money);
-	localStorage.setItem('bankMoney', bankMoney);
-	localStorage.setItem('npcBankMoney', npcBankMoney);
-	localStorage.setItem('playerHealth', playerHealth);
-	localStorage.setItem('jobEarnings', JSON.stringify(jobEarnings));
-	localStorage.setItem('ownedHouses', JSON.stringify(ownedHouses));
+	setGameData('money', money);
+	setGameData('bankMoney', bankMoney);
+	setGameData('npcBankMoney', npcBankMoney);
+	setGameData('playerHealth', playerHealth);
+	setGameData('jobEarnings', JSON.stringify(jobEarnings));
+	setGameData('ownedHouses', JSON.stringify(ownedHouses));
 	houseBought = ownedHouses.length > 0;
-	localStorage.setItem('houseBought', houseBought);
+	setGameData('houseBought', houseBought);
 }
 
 function showMessage(text, duration = 3000) {
@@ -3849,7 +3859,7 @@ const jobSalarySteps = {
 	taxi: 20
 };
 
-let jobEarnings = JSON.parse(localStorage.getItem('jobEarnings')) || {
+let jobEarnings = JSON.parse(getGameData('jobEarnings')) || {
 	office: 30,
 	delivery: 40,
 	taxi: 60
@@ -5140,7 +5150,7 @@ function checkVehicleInteraction() {
 }
 
 function saveVehicleData() {
-	localStorage.setItem('ownedCars', JSON.stringify(ownedCars));
+	setGameData('ownedCars', JSON.stringify(ownedCars));
 }
 
 // Auto-Funktionen
