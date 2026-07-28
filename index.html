@@ -162,30 +162,48 @@
 	</div>
 	<script>
 		(() => {
-			const accountsKey = 'freeCity.accounts';
 			const legacyKeys = ['money', 'bankMoney', 'npcBankMoney', 'playerHealth', 'jobEarnings', 'ownedHouses', 'houseBought', 'ownedCars'];
 			const form = document.getElementById('loginForm');
 			const usernameInput = document.getElementById('usernameInput');
 			const pinInput = document.getElementById('pinInput');
 			const message = document.getElementById('loginMessage');
+			const submitButton = form.querySelector('button[type="submit"]');
 
-			function getAccounts() {
-				try {
-					return JSON.parse(localStorage.getItem(accountsKey)) || {};
-				} catch {
-					return {};
-				}
-			}
-
-			function startGame(accountId) {
-				window.freeCityAccountId = accountId;
+			function startGame(token, gameData) {
+				window.freeCitySessionToken = token;
+				window.freeCityGameData = gameData;
 				document.getElementById('loginOverlay').remove();
 				const gameScript = document.createElement('script');
 				gameScript.src = 'script.js';
 				document.body.appendChild(gameScript);
 			}
 
-			form.addEventListener('submit', event => {
+			async function request(path, options = {}, token) {
+				const response = await fetch(path, {
+					...options,
+					headers: {
+						'Content-Type': 'application/json',
+						...(token ? { Authorization: `Bearer ${token}` } : {}),
+						...options.headers
+					}
+				});
+				if (!response.ok) {
+					const body = await response.json().catch(() => ({}));
+					throw new Error(body.error || 'Die Anfrage ist fehlgeschlagen.');
+				}
+				return response.status === 204 ? null : response.json();
+			}
+
+			function readLocalSave(username) {
+				const prefix = `freeCity.account.${encodeURIComponent(username.toLocaleLowerCase())}.`;
+				return legacyKeys.reduce((data, key) => {
+					const value = localStorage.getItem(prefix + key);
+					if (value !== null) data[key] = value;
+					return data;
+				}, {});
+			}
+
+			form.addEventListener('submit', async event => {
 				event.preventDefault();
 				const username = usernameInput.value.trim();
 				const pin = pinInput.value;
@@ -198,29 +216,29 @@
 					return;
 				}
 
-				const accounts = getAccounts();
-				const accountId = encodeURIComponent(username.toLocaleLowerCase());
-				const account = accounts[accountId];
-				if (account && account.pin !== pin) {
-					message.textContent = 'Benutzername oder PIN ist nicht korrekt.';
+				submitButton.disabled = true;
+				message.textContent = 'Anmeldung wird geprüft...';
+				try {
+					const authentication = await request('/api/auth', {
+						method: 'POST',
+						body: JSON.stringify({ username, pin })
+					});
+					let gameData = (await request('/api/game-save', {}, authentication.token)).data;
+					const localSave = authentication.created ? readLocalSave(username) : {};
+					if (Object.keys(localSave).length) {
+						gameData = { ...gameData, ...localSave };
+						await request('/api/game-save', {
+							method: 'PUT',
+							body: JSON.stringify({ data: gameData })
+						}, authentication.token);
+					}
+					startGame(authentication.token, gameData);
+				} catch (error) {
+					message.textContent = error.message || 'Die Anmeldung ist fehlgeschlagen.';
 					pinInput.value = '';
 					pinInput.focus();
-					return;
+					submitButton.disabled = false;
 				}
-
-				if (!account) {
-					const isFirstAccount = Object.keys(accounts).length === 0;
-					accounts[accountId] = { username, pin };
-					localStorage.setItem(accountsKey, JSON.stringify(accounts));
-					if (isFirstAccount) {
-						legacyKeys.forEach(key => {
-							const value = localStorage.getItem(key);
-							if (value !== null) localStorage.setItem(`freeCity.account.${accountId}.${key}`, value);
-						});
-					}
-				}
-
-				startGame(accountId);
 			});
 		})();
 	</script>
