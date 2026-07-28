@@ -35,38 +35,13 @@ const mapSearchBtn = document.getElementById('mapSearchBtn');
 const mapClearBtn = document.getElementById('mapClearBtn');
 const mapSearchResult = document.getElementById('mapSearchResult');
 
-const gameData = window.freeCityGameData || {};
-const sessionToken = window.freeCitySessionToken;
-let saveTimeout = null;
-
 function getGameData(key) {
-	return gameData[key] ?? null;
+	return localStorage.getItem(key);
 }
 
 function setGameData(key, value) {
-	gameData[key] = String(value);
-	scheduleGameSave();
+	localStorage.setItem(key, value);
 }
-
-function scheduleGameSave() {
-	clearTimeout(saveTimeout);
-	saveTimeout = setTimeout(saveGameData, 800);
-}
-
-function saveGameData() {
-	if (!sessionToken) return;
-	fetch('/api/game-save', {
-		method: 'PUT',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${sessionToken}`
-		},
-		body: JSON.stringify({ data: gameData }),
-		keepalive: true
-	}).catch(() => showMessage('Spielstand konnte nicht online gespeichert werden.', 3000));
-}
-
-window.addEventListener('pagehide', saveGameData);
 
 // Uhrzeit-System
 const timeDisplay = document.getElementById('timeDisplay');
