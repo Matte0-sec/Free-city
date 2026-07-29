@@ -16,9 +16,9 @@ const closeShopBtn = document.getElementById('closeShop');
 const messageBox = document.getElementById('messageBox');
 const jobPanel = document.getElementById('jobPanel');
 const officeJobBtn = document.getElementById('officeJobBtn');
-const deliveryJobBtn = document.getElementById('deliveryJobBtn');
+const officeMathJobBtn = document.getElementById('officeMathJobBtn');
+const officeFilingJobBtn = document.getElementById('officeFilingJobBtn');
 const cleaningJobBtn = document.getElementById('cleaningJobBtn');
-const taxiJobBtn = document.getElementById('taxiJobBtn');
 const closeJobBtn = document.getElementById('closeJob');
 const dialogPanel = document.getElementById('dialogPanel');
 const npcName = document.getElementById('npcName');
@@ -125,6 +125,8 @@ const closeCarDealerBtn = document.getElementById('closeCarDealer');
 const buySmallCarBtn = document.getElementById('buySmallCar');
 const buyFamilyVanBtn = document.getElementById('buyFamilyVan');
 const buySportsCarBtn = document.getElementById('buySportsCar');
+const buyRacingCarBtn = document.getElementById('buyRacingCar');
+const buyHypercarBtn = document.getElementById('buyHypercar');
 const buyPickupTruckBtn = document.getElementById('buyPickupTruck');
 const buySUVBtn = document.getElementById('buySUV');
 const buyConvertibleBtn = document.getElementById('buyConvertible');
@@ -578,6 +580,10 @@ ownedCars.forEach(car => {
 // Fahrzeug-Geschwindigkeiten basierend auf Typ (erhöht für bessere Geschwindigkeiten)
 function getVehicleMaxSpeed(vehicleType) {
 	switch(vehicleType) {
+		case 'hypercar':
+			return 5.2;
+		case 'supercar':
+			return 4.4;
 		case 'sports':
 			return 3.5; // Sportwagen: 3.5 (extrem schnell!)
 		case 'small':
@@ -601,6 +607,10 @@ function getVehicleMaxSpeed(vehicleType) {
 
 function getVehicleReverseSpeed(vehicleType) {
 	switch(vehicleType) {
+		case 'hypercar':
+			return -2.5;
+		case 'supercar':
+			return -2.1;
 		case 'sports':
 			return -1.8; // Sportwagen rückwärts auch schneller
 		case 'small':
@@ -3990,15 +4000,16 @@ const jobLocations = [
 ];
 
 const jobSalarySteps = {
-	office: 10,
-	delivery: 15,
-	taxi: 20
+	officeColors: 10,
+	officeMath: 15,
+	officeFiling: 15
 };
 
-let jobEarnings = JSON.parse(getGameData('jobEarnings')) || {
-	office: 30,
-	delivery: 40,
-	taxi: 60
+const savedJobEarnings = JSON.parse(getGameData('jobEarnings') || '{}');
+let jobEarnings = {
+	officeColors: savedJobEarnings.officeColors || savedJobEarnings.office || 30,
+	officeMath: savedJobEarnings.officeMath || 45,
+	officeFiling: savedJobEarnings.officeFiling || 55
 };
 
 let activeJob = null;
@@ -4015,10 +4026,12 @@ const officeJobColors = [
 	{ name: 'Gelb', hex: 0xffdd55 }
 ];
 
+const officeFilingNames = ['Angebot', 'Bericht', 'Dokument', 'Eingang', 'Rechnung', 'Vertrag'];
+
 function refreshJobButtonLabels() {
-	officeJobBtn.textContent = `Bürojob (${jobEarnings.office}€)`;
-	deliveryJobBtn.textContent = `Lieferjob (${jobEarnings.delivery}€)`;
-	taxiJobBtn.textContent = `Taxijob (${jobEarnings.taxi}€)`;
+	officeJobBtn.textContent = `Bürojob: Farben (${jobEarnings.officeColors}€)`;
+	officeMathJobBtn.textContent = `Bürojob: Rechnen (${jobEarnings.officeMath}€)`;
+	officeFilingJobBtn.textContent = `Bürojob: Akten sortieren (${jobEarnings.officeFiling}€)`;
 }
 
 function ensureJobTargetMarker() {
@@ -4084,13 +4097,12 @@ function ensureOfficeJobOverlay() {
 
 function renderOfficeJobRound() {
 	if (!activeJob || activeJob.type !== 'office') return;
-	const targetColor = officeJobColors[activeJob.targetIndex];
-	officeJobPrompt.textContent = `Drücke: ${targetColor.name}`;
+	officeJobPrompt.textContent = activeJob.prompt;
 	officeJobProgress.textContent = `Runde ${activeJob.round + 1} von ${activeJob.totalRounds} | Fehler: ${activeJob.wrongAttempts}`;
 	officeJobButtonRow.innerHTML = '';
-	officeJobColors.forEach((color, index) => {
+	activeJob.options.forEach(option => {
 		const button = document.createElement('button');
-		button.textContent = color.name;
+		button.textContent = option.label;
 		button.style.cssText = `
 			padding: 14px 10px;
 			font-size: 1em;
@@ -4098,24 +4110,46 @@ function renderOfficeJobRound() {
 			border-radius: 10px;
 			cursor: pointer;
 			font-weight: bold;
-			color: #111;
-			background: #${color.hex.toString(16).padStart(6, '0')};
+			color: ${option.color ? '#111' : '#fff'};
+			background: ${option.color ? `#${option.color.toString(16).padStart(6, '0')}` : '#3d6f9e'};
 		`;
-		button.addEventListener('click', () => handleOfficeColorChoice(index));
+		button.addEventListener('click', () => handleOfficeChoice(option.value));
 		officeJobButtonRow.appendChild(button);
 	});
 	officeJobOverlay.style.display = 'block';
 }
 
+function shuffleOfficeOptions(options) {
+	return options.sort(() => Math.random() - 0.5);
+}
+
 function prepareNextOfficeRound() {
 	if (!activeJob || activeJob.type !== 'office') return;
-	let nextTargetIndex = Math.floor(Math.random() * officeJobColors.length);
-	if (activeJob.targetIndex !== undefined && officeJobColors.length > 1) {
-		while (nextTargetIndex === activeJob.targetIndex) {
-			nextTargetIndex = Math.floor(Math.random() * officeJobColors.length);
-		}
+	if (activeJob.variant === 'colors') {
+		const colorIndex = Math.floor(Math.random() * officeJobColors.length);
+		const color = officeJobColors[colorIndex];
+		activeJob.prompt = `Klicke auf: ${color.name}`;
+		activeJob.answer = colorIndex;
+		activeJob.options = officeJobColors.map((option, index) => ({
+			value: index,
+			label: option.name,
+			color: option.hex
+		}));
+	} else if (activeJob.variant === 'math') {
+		const firstNumber = Math.floor(Math.random() * 20) + 5;
+		const secondNumber = Math.floor(Math.random() * 20) + 5;
+		const answer = firstNumber + secondNumber;
+		const values = [answer, answer - 2, answer + 3, answer + 5];
+		activeJob.prompt = `Rechne: ${firstNumber} + ${secondNumber} = ?`;
+		activeJob.answer = answer;
+		activeJob.options = shuffleOfficeOptions(values.map(value => ({ value, label: String(value) })));
+	} else {
+		const names = shuffleOfficeOptions([...officeFilingNames]).slice(0, 4);
+		const answer = [...names].sort((first, second) => first.localeCompare(second, 'de'))[0];
+		activeJob.prompt = 'Welche Akte kommt alphabetisch zuerst?';
+		activeJob.answer = answer;
+		activeJob.options = shuffleOfficeOptions(names.map(name => ({ value: name, label: name })));
 	}
-	activeJob.targetIndex = nextTargetIndex;
 	renderOfficeJobRound();
 }
 
@@ -4134,9 +4168,9 @@ function completeJob(jobType, successMessage) {
 	activeJob = null;
 }
 
-function handleOfficeColorChoice(index) {
+function handleOfficeChoice(value) {
 	if (!activeJob || activeJob.type !== 'office') return;
-	if (index !== activeJob.targetIndex) {
+	if (value !== activeJob.answer) {
 		activeJob.wrongAttempts += 1;
 		renderOfficeJobRound();
 		showMessage('Falsche Farbe. Versuch es nochmal.', 1500);
@@ -4145,7 +4179,7 @@ function handleOfficeColorChoice(index) {
 
 	activeJob.round += 1;
 	if (activeJob.round >= activeJob.totalRounds) {
-		completeJob('office', 'Bürojob erledigt!');
+		completeJob(activeJob.rewardType, 'Bürojob erledigt!');
 		return;
 	}
 
@@ -4153,7 +4187,7 @@ function handleOfficeColorChoice(index) {
 	showMessage('Richtig! Nächste Farbe.', 1000);
 }
 
-function startOfficeJob() {
+function startOfficeJob(variant = 'colors') {
 	if (activeJob) {
 		showMessage('Beende zuerst deinen aktuellen Job.', 2500);
 		return;
@@ -4162,79 +4196,18 @@ function startOfficeJob() {
 	ensureOfficeJobOverlay();
 	activeJob = {
 		type: 'office',
+		variant,
+		rewardType: variant === 'math' ? 'officeMath' : variant === 'filing' ? 'officeFiling' : 'officeColors',
 		round: 0,
-		totalRounds: 5,
-		wrongAttempts: 0,
-		targetIndex: 0
+		totalRounds: variant === 'colors' ? 5 : 4,
+		wrongAttempts: 0
 	};
 	prepareNextOfficeRound();
-	showMessage('Bürojob gestartet. Drücke die richtige Farbe auf dem Bildschirm.', 3000);
-}
-
-function startDeliveryJob() {
-	if (activeJob) {
-		showMessage('Beende zuerst deinen aktuellen Job.', 2500);
-		return;
-	}
-	jobPanel.style.display = 'none';
-	const target = getRandomJobLocation('Jobcenter');
-	activeJob = {
-		type: 'delivery',
-		target,
-		startedAt: Date.now()
-	};
-	showJobTargetMarker(target, 0xffaa00);
-	showMessage(`Lieferjob gestartet: Bringe das Paket zu ${target.name}.`, 3000);
-}
-
-function startTaxiJob() {
-	if (activeJob) {
-		showMessage('Beende zuerst deinen aktuellen Job.', 2500);
-		return;
-	}
-	jobPanel.style.display = 'none';
-	const target = getRandomJobLocation('Jobcenter');
-	activeJob = {
-		type: 'taxi',
-		target,
-		startedAt: Date.now()
-	};
-	showJobTargetMarker(target, 0x9b59ff);
-	showMessage(`Taxijob gestartet: Bringe den Fahrgast zu ${target.name}.`, 3000);
+	showMessage('Bürojob gestartet. Löse die Aufgaben auf dem Bildschirm.', 3000);
 }
 
 function tryCompleteActiveJob() {
 	if (!activeJob) return false;
-
-	if (activeJob.type === 'delivery') {
-		if (isInVehicle) return false;
-		const distance = Math.sqrt(
-			Math.pow(player.position.x - activeJob.target.x, 2) +
-			Math.pow(player.position.z - activeJob.target.z, 2)
-		);
-		if (distance < 8) {
-			completeJob('delivery', `Paket bei ${activeJob.target.name} abgeliefert!`);
-			return true;
-		}
-		showMessage('Bringe das Paket zum Zielmarker.', 1500);
-		return false;
-	}
-
-	if (activeJob.type === 'taxi') {
-		if (!isInVehicle) {
-			return false;
-		}
-		const distance = Math.sqrt(
-			Math.pow(player.position.x - activeJob.target.x, 2) +
-			Math.pow(player.position.z - activeJob.target.z, 2)
-		);
-		if (distance < 10) {
-			completeJob('taxi', `Fahrgast bei ${activeJob.target.name} abgesetzt!`);
-			return true;
-		}
-		showMessage('Fahre den Fahrgast zum Zielmarker.', 1500);
-		return false;
-	}
 
 	return false;
 }
@@ -5021,6 +4994,43 @@ function buyBus() {
 	}
 }
 
+function buyPerformanceCar(type, name, color, price) {
+	if (money < price) {
+		showMessage(`Zu wenig Geld! Du brauchst ${price}€.`, 2000);
+		return;
+	}
+
+	money -= price;
+	moneySpan.textContent = `Geld: ${money} €`;
+	const carId = Date.now() + Math.random();
+	ownedCars.push({ id: carId, type, name, color });
+	saveData();
+	saveVehicleData();
+
+	const spawnPos = getHouseSpawnPosition();
+	const newCar = createCar(type, spawnPos.x, spawnPos.z, color);
+	newCar.userData.id = carId;
+	newCar.userData.name = name;
+	newCar.userData.isOwned = true;
+
+	const marker = new THREE.Mesh(
+		new THREE.SphereGeometry(0.5, 8, 8),
+		new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 0.7 })
+	);
+	marker.position.y = 3;
+	newCar.add(marker);
+	scene.add(newCar);
+	showMessage(`🏎️ ${name} gekauft! Es steht neben deinem Haus.`, 3500);
+}
+
+function buyRacingCar() {
+	buyPerformanceCar('supercar', 'Rennwagen GT', 0xE63946, 4500);
+}
+
+function buyHypercar() {
+	buyPerformanceCar('hypercar', 'Hypercar X', 0x00B8D9, 7000);
+}
+
 function getHouseSpawnPosition() {
 	// Position neben dem primären Spielerhaus
 	const primaryHouse = getPrimaryHousePlot();
@@ -5161,7 +5171,13 @@ function updateVehicleMovement() {
 	let deceleration = 0.10; // Erhöht von 0.05
 	
 	// Sportwagen haben bessere Beschleunigung
-	if (currentVehicleType === 'sports') {
+	if (currentVehicleType === 'hypercar') {
+		acceleration = 0.37;
+		deceleration = 0.22;
+	} else if (currentVehicleType === 'supercar') {
+		acceleration = 0.31;
+		deceleration = 0.18;
+	} else if (currentVehicleType === 'sports') {
 		acceleration = 0.25; // Schnellere Beschleunigung für Sportwagen (erhöht von 0.12)
 		deceleration = 0.15; // Schnellere Bremsung für Sportwagen (erhöht von 0.08)
 	} else if (currentVehicleType === 'convertible') {
@@ -5400,6 +5416,50 @@ function createCar(type, x, z, color) {
 			car.add(wheel);
 		});
 		
+	} else if (type === 'supercar' || type === 'hypercar') {
+		const isHypercar = type === 'hypercar';
+		const body = new THREE.Mesh(
+			new THREE.BoxGeometry(isHypercar ? 6.4 : 6, 0.85, 2.25),
+			new THREE.MeshPhongMaterial({ color })
+		);
+		body.position.y = 0.62;
+		car.add(body);
+
+		const cabin = new THREE.Mesh(
+			new THREE.BoxGeometry(2.6, 0.75, 1.7),
+			new THREE.MeshPhongMaterial({ color: 0x17202a, transparent: true, opacity: 0.82 })
+		);
+		cabin.position.set(-0.25, 1.28, 0);
+		car.add(cabin);
+
+		const spoiler = new THREE.Mesh(
+			new THREE.BoxGeometry(2.2, 0.16, 0.45),
+			new THREE.MeshPhongMaterial({ color: 0x111111 })
+		);
+		spoiler.position.set(-2.4, 1.18, 0);
+		car.add(spoiler);
+
+		const wheelGeometry = new THREE.CylinderGeometry(0.45, 0.45, 0.28, 10);
+		const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x151515 });
+		const wheelPositions = [
+			{ x: -2.25, z: -0.95 }, { x: 2.25, z: -0.95 },
+			{ x: -2.25, z: 0.95 }, { x: 2.25, z: 0.95 }
+		];
+		wheelPositions.forEach(position => {
+			const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+			wheel.position.set(position.x, 0.45, position.z);
+			wheel.rotation.z = Math.PI / 2;
+			car.add(wheel);
+		});
+
+		if (isHypercar) {
+			const light = new THREE.Mesh(
+				new THREE.BoxGeometry(0.15, 0.22, 1.55),
+				new THREE.MeshBasicMaterial({ color: 0xb8f7ff })
+			);
+			light.position.set(3.22, 0.8, 0);
+			car.add(light);
+		}
 	} else if (type === 'truck') {
 		// Pickup Truck
 		const body = new THREE.Mesh(
@@ -5640,6 +5700,20 @@ function setupCarDealer() {
 	sportsCar.userData.name = 'Sportwagen';
 	sportsCar.userData.type = 'sports'; // Typ hinzufügen
 	sportsCar.userData.isShowroom = true;
+
+	const racingCar = createCar('supercar', carDealerX - 18, carDealerZ + 3, 0xE63946);
+	racingCar.userData.id = 'showroom_supercar';
+	racingCar.userData.price = 4500;
+	racingCar.userData.name = 'Rennwagen GT';
+	racingCar.userData.type = 'supercar';
+	racingCar.userData.isShowroom = true;
+
+	const hypercar = createCar('hypercar', carDealerX + 18, carDealerZ + 3, 0x00B8D9);
+	hypercar.userData.id = 'showroom_hypercar';
+	hypercar.userData.price = 7000;
+	hypercar.userData.name = 'Hypercar X';
+	hypercar.userData.type = 'hypercar';
+	hypercar.userData.isShowroom = true;
 	
 	// Pickup Truck
 	const pickupTruck = createCar('truck', carDealerX + 6, carDealerZ + 3, 0x44FF44);
@@ -5685,6 +5759,8 @@ function setupCarDealer() {
 	scene.add(smallCar);
 	scene.add(familyVan);
 	scene.add(sportsCar);
+	scene.add(racingCar);
+	scene.add(hypercar);
 	scene.add(pickupTruck);
 	scene.add(suv);
 	scene.add(convertible);
@@ -5762,9 +5838,9 @@ buyDrinkBtn.addEventListener('click', buyDrink);
 buyHouseBtn.addEventListener('click', buyHouse);
 closeShopBtn.addEventListener('click', closeShop);
 officeJobBtn.addEventListener('click', startOfficeJob);
-deliveryJobBtn.addEventListener('click', startDeliveryJob);
+officeMathJobBtn.addEventListener('click', () => startOfficeJob('math'));
+officeFilingJobBtn.addEventListener('click', () => startOfficeJob('filing'));
 cleaningJobBtn.addEventListener('click', doCleaningJob);
-taxiJobBtn.addEventListener('click', startTaxiJob);
 closeJobBtn.addEventListener('click', closeJob);
 dialogOption1.addEventListener('click', () => selectDialogOption(0));
 dialogOption2.addEventListener('click', () => selectDialogOption(1));
@@ -5790,6 +5866,8 @@ closeFashionShopBtn.addEventListener('click', () => {
 buySmallCarBtn.addEventListener('click', buySmallCar);
 buyFamilyVanBtn.addEventListener('click', buyFamilyVan);
 buySportsCarBtn.addEventListener('click', buySportsCar);
+buyRacingCarBtn.addEventListener('click', buyRacingCar);
+buyHypercarBtn.addEventListener('click', buyHypercar);
 buyPickupTruckBtn.addEventListener('click', buyPickupTruck);
 buySUVBtn.addEventListener('click', buySUV);
 buyConvertibleBtn.addEventListener('click', buyConvertible);
