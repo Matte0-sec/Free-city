@@ -513,6 +513,37 @@ h1 {
 	font-weight: bold;
 }
 
+.outfitColorPicker {
+	display: flex;
+	gap: 9px;
+}
+
+.outfitColor {
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border: 2px solid transparent;
+	border-radius: 50%;
+	background: var(--swatch-color);
+	cursor: pointer;
+}
+
+.outfitColor:hover:not(:disabled), .outfitColor.selected {
+	border-color: #fff;
+	box-shadow: 0 0 0 2px #e4669b;
+}
+
+.outfitColor:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+
+.outfitColorHint {
+	margin: 8px 0 0;
+	color: #f2dce6;
+	font-size: 0.85em;
+}
+
 #closeFashionShop {
 	width: 100%;
 	margin-top: 16px;

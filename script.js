@@ -37,6 +37,8 @@ const mapSearchResult = document.getElementById('mapSearchResult');
 const fashionShopPanel = document.getElementById('fashionShopPanel');
 const closeFashionShopBtn = document.getElementById('closeFashionShop');
 const fashionOptionButtons = document.querySelectorAll('.fashionOption');
+const outfitColorButtons = document.querySelectorAll('.outfitColor');
+const outfitColorHint = document.getElementById('outfitColorHint');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -3061,7 +3063,8 @@ function applyFashion() {
 	const skin = fashionCatalog.skin[selected.skin];
 	const hat = fashionCatalog.hat[selected.hat];
 	if (outfit) {
-		player.getObjectByName('playerBody').material.color.setHex(outfit.color);
+		const outfitColor = fashionState.outfitColor || outfit.color;
+		player.getObjectByName('playerBody').material.color.setHex(outfitColor);
 		player.getObjectByName('playerLeftLeg').material.color.setHex(outfit.legColor);
 		player.getObjectByName('playerRightLeg').material.color.setHex(outfit.legColor);
 	}
@@ -3077,6 +3080,13 @@ function applyFashion() {
 		button.classList.toggle('selected', fashionState.selected[button.dataset.category] === button.dataset.value);
 		button.classList.toggle('owned', fashionState.owned.includes(`${button.dataset.category}:${button.dataset.value}`));
 	});
+	const hasOutfit = Boolean(selected.outfit);
+	outfitColorButtons.forEach(button => {
+		const color = Number(button.dataset.color);
+		button.disabled = !hasOutfit;
+		button.classList.toggle('selected', hasOutfit && (fashionState.outfitColor || outfit.color) === color);
+	});
+	outfitColorHint.textContent = hasOutfit ? 'Farbe ändern - kostenlos.' : 'Kaufe zuerst ein Outfit.';
 }
 
 function buyFashionItem(category, value) {
@@ -3095,6 +3105,16 @@ function buyFashionItem(category, value) {
 		showMessage(`Gekauft: ${value === 'crown' ? 'Krone' : 'neuer Look'}!`, 2200);
 	}
 	fashionState.selected[category] = value;
+	setGameData('fashionState', JSON.stringify(fashionState));
+	applyFashion();
+}
+
+function selectOutfitColor(color) {
+	if (!fashionState.selected.outfit) {
+		showMessage('Kaufe zuerst ein Outfit.', 2000);
+		return;
+	}
+	fashionState.outfitColor = color;
 	setGameData('fashionState', JSON.stringify(fashionState));
 	applyFashion();
 }
@@ -5758,6 +5778,9 @@ closeQuestBtn.addEventListener('click', () => {
 });
 fashionOptionButtons.forEach(button => {
 	button.addEventListener('click', () => buyFashionItem(button.dataset.category, button.dataset.value));
+});
+outfitColorButtons.forEach(button => {
+	button.addEventListener('click', () => selectOutfitColor(Number(button.dataset.color)));
 });
 closeFashionShopBtn.addEventListener('click', () => {
 	fashionShopPanel.style.display = 'none';
