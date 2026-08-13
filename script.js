@@ -41,6 +41,8 @@ const outfitColorButtons = document.querySelectorAll('.outfitColor');
 const outfitColorHint = document.getElementById('outfitColorHint');
 const prisonElevatorPanel = document.getElementById('prisonElevatorPanel');
 const prisonFloorButtons = document.getElementById('prisonFloorButtons');
+const prisonReceptionPanel = document.getElementById('prisonReceptionPanel');
+const prisonerList = document.getElementById('prisonerList');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -160,13 +162,13 @@ const jailRiskSpan = document.getElementById('jailRisk');
 let policeCars = [];
 let policeSpawned = false;
 const POLICE_CAR_SPEED = 0.9; // Erhöht von 0.8
-const POLICE_CATCH_DISTANCE = 8; // Distanz für Festnahme
+const POLICE_CATCH_DISTANCE = 2.5; // Festnahme nur bei Fahrzeugkontakt
 
 // Fuß-Polizisten-System
 let footPolice = [];
 let footPoliceSpawned = false;
 const FOOT_POLICE_SPEED = 0.4; // Erhöht von 0.3
-const FOOT_POLICE_CATCH_DISTANCE = 3; // Näher als Fahrzeuge
+const FOOT_POLICE_CATCH_DISTANCE = 1; // Festnahme nur bei Berührung
 
 // Polizei-Fahrzeug erstellen
 function createPoliceCar(x, z) {
@@ -744,6 +746,11 @@ let isInJailInterior = false;
 let jailInterval = null;
 let currentJailFloor = 0;
 let displayedJailFloor = null;
+const prisonReceptionPosition = { x: 175, z: -259 };
+const prisoners = ['Alex Weber', 'Mira König', 'Jonas Beck', 'Lea Hoffmann', 'Emir Kaya', 'Sofia Brandt', 'Noah Fischer', 'Elena Wolf'];
+let selectedPrisoner = null;
+let rescuedPrisoner = null;
+let rescueEscapeActive = false;
 
 if (houseBought && ownedHouses.length === 0) {
 	ownedHouses.push({ id: 'legacy-house', houseId: 'small', plotIndex: 0 });
@@ -3369,6 +3376,7 @@ function animate() {
 	
 	// Fuß-Polizisten aktualisieren
 	updateFootPolice();
+	updateRescuedPrisoner();
 	
 	// Geschwindigkeitsanzeige aktualisieren
 	updateSpeedDisplay();
@@ -5992,6 +6000,7 @@ document.addEventListener('keydown', e => {
 	}
 	}
 	if (e.key.toLowerCase() === 'r') {
+		if (tryOpenPrisonReception()) return;
 		tryWithdraw();
 	}
 });
@@ -6328,6 +6337,94 @@ function createPrisonLabel(text, width, height) {
 	return label;
 }
 
+function tryOpenPrisonReception() {
+	if (isInVehicle || isInJailInterior || rescueEscapeActive) return false;
+	const receptionDistance = Math.hypot(
+		player.position.x - prisonReceptionPosition.x,
+		player.position.z - prisonReceptionPosition.z
+	);
+	if (receptionDistance > 6) return false;
+	selectedPrisoner = null;
+	renderPrisonerList();
+	prisonReceptionPanel.style.display = 'block';
+	return true;
+}
+
+function renderPrisonerList() {
+	prisonerList.innerHTML = '';
+	prisoners.forEach(name => {
+		const entry = document.createElement('div');
+		entry.className = 'prisonerEntry';
+		const nameButton = document.createElement('button');
+		nameButton.className = 'prisonerButton';
+		nameButton.textContent = name;
+		nameButton.addEventListener('click', () => {
+			selectedPrisoner = name;
+			renderPrisonerList();
+		});
+		entry.appendChild(nameButton);
+
+		if (selectedPrisoner === name) {
+			const rescueButton = document.createElement('button');
+			rescueButton.className = 'rescuePrisonerButton';
+			rescueButton.textContent = 'Zur Flucht helfen';
+			rescueButton.addEventListener('click', () => startPrisonerRescue(name));
+			entry.appendChild(rescueButton);
+		}
+		prisonerList.appendChild(entry);
+	});
+}
+
+function startPrisonerRescue(name) {
+	prisonReceptionPanel.style.display = 'none';
+	selectedPrisoner = null;
+	rescueEscapeActive = true;
+	rescuedPrisoner = createHuman();
+	rescuedPrisoner.userData.isRescuedPrisoner = true;
+	rescuedPrisoner.userData.name = name;
+	const escapePosition = { x: jailPosition.x, z: jailPosition.z - 18 };
+	player.position.set(escapePosition.x, 0, escapePosition.z);
+	rescuedPrisoner.position.set(escapePosition.x - 3, 0, escapePosition.z - 2);
+	scene.add(rescuedPrisoner);
+
+	wantedLevel = 2;
+	policeAlert = true;
+	policeLoseSightSince = 0;
+	updateWantedLevelDisplay();
+	updatePoliceChaseTimerDisplay();
+	spawnPoliceCars();
+	spawnFootPolice();
+	showMessage(`${name} folgt dir. Entkommt gemeinsam der Polizei!`, 3500);
+}
+
+function updateRescuedPrisoner() {
+	if (!rescuedPrisoner || !rescueEscapeActive) return;
+	const dx = player.position.x - rescuedPrisoner.position.x;
+	const dz = player.position.z - rescuedPrisoner.position.z;
+	const distance = Math.hypot(dx, dz);
+	if (distance > 2.5) {
+		const followSpeed = 0.13;
+		rescuedPrisoner.position.x += (dx / distance) * followSpeed;
+		rescuedPrisoner.position.z += (dz / distance) * followSpeed;
+		rescuedPrisoner.rotation.y = Math.atan2(dx, dz);
+		const legs = rescuedPrisoner.children.filter(child => Math.abs(child.position.x) === 0.3);
+		if (legs[0]) legs[0].rotation.x = Math.sin(Date.now() * 0.01) * 0.7;
+		if (legs[1]) legs[1].rotation.x = -Math.sin(Date.now() * 0.01) * 0.7;
+	}
+}
+
+function completePrisonerRescue() {
+	if (!rescueEscapeActive || !rescuedPrisoner) return;
+	const reward = 750;
+	money += reward;
+	moneySpan.textContent = `Geld: ${money} €`;
+	saveData();
+	if (rescuedPrisoner.parent) rescuedPrisoner.parent.remove(rescuedPrisoner);
+	showMessage(`${rescuedPrisoner.userData.name} ist sicher. Du erhältst ${reward}€ für die Hilfe.`, 4000);
+	rescuedPrisoner = null;
+	rescueEscapeActive = false;
+}
+
 function updatePrisonElevatorMenu() {
 	if (!jailRoom) return;
 	const elevatorDistance = Math.hypot(player.position.x - jailPosition.x, player.position.z - (jailPosition.z + 5));
@@ -6510,6 +6607,7 @@ function updatePoliceLoseInterest() {
 			policeLoseSightSince = 0;
 			if (wantedLevel === 0) {
 				resetPoliceAlert();
+				completePrisonerRescue();
 				showMessage('🚓 Die Polizei hat dich aus den Augen verloren.', 3000);
 			} else {
 				removePoliceCars();

@@ -117,6 +117,67 @@ h1 {
 .prisonFloorButton:hover {
 	background: #506272;
 }
+#prisonReceptionPanel {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	z-index: 1002;
+	width: min(90vw, 340px);
+	max-height: 70vh;
+	overflow-y: auto;
+	transform: translate(-50%, -50%);
+	padding: 18px;
+	border: 1px solid #8d9aa6;
+	border-radius: 6px;
+	background: rgba(24, 29, 34, 0.97);
+	box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+	color: #fff;
+	text-align: left;
+}
+#prisonReceptionPanel h3, #prisonReceptionPanel p {
+	margin: 0;
+}
+#prisonReceptionPanel h3 {
+	color: #d7e5f2;
+}
+#prisonReceptionPanel p {
+	margin: 5px 0 12px;
+	color: #b9c3cc;
+	font-size: 0.9rem;
+}
+#prisonerList {
+	display: grid;
+	gap: 7px;
+}
+.prisonerEntry {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 8px;
+	align-items: center;
+}
+.prisonerButton, .rescuePrisonerButton {
+	padding: 9px 10px;
+	border: 1px solid #596775;
+	border-radius: 4px;
+	color: #fff;
+	font: inherit;
+	font-size: 0.9rem;
+	cursor: pointer;
+}
+.prisonerButton {
+	background: #37424d;
+	text-align: left;
+}
+.prisonerButton:hover {
+	background: #506272;
+}
+.rescuePrisonerButton {
+	background: #8b3d31;
+	white-space: nowrap;
+}
+.rescuePrisonerButton:hover {
+	background: #a94b3d;
+}
 #healthWidget {
 	display: inline-block;
 	vertical-align: middle;
