@@ -993,12 +993,11 @@ let minimapFocusZoom = 1;
 function updateMapNavigatorLayout() {
 	if (!mapSearchInput || !mapSearchBtn || !mapClearBtn || !mapSearchResult) return;
 	const minimapWidth = minimapContainer.getBoundingClientRect().width || 200;
-	const topOffset = 20 + minimapWidth + 12;
 	const targetWidth = Math.max(160, minimapWidth);
 	const navigator = document.getElementById('mapNavigator');
 	if (navigator) {
-		navigator.style.left = '20px';
-		navigator.style.top = `${topOffset}px`;
+		navigator.style.left = `${32 + minimapWidth}px`;
+		navigator.style.top = '20px';
 		navigator.style.width = `${targetWidth}px`;
 	}
 }
