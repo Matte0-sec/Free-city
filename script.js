@@ -39,6 +39,8 @@ const closeFashionShopBtn = document.getElementById('closeFashionShop');
 const fashionOptionButtons = document.querySelectorAll('.fashionOption');
 const outfitColorButtons = document.querySelectorAll('.outfitColor');
 const outfitColorHint = document.getElementById('outfitColorHint');
+const prisonElevatorPanel = document.getElementById('prisonElevatorPanel');
+const prisonFloorButtons = document.getElementById('prisonFloorButtons');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -122,6 +124,7 @@ timeVeryFastBtn.addEventListener('click', () => setTimeSpeed(15));
 // Autohändler
 const carDealerPanel = document.getElementById('carDealerPanel');
 const closeCarDealerBtn = document.getElementById('closeCarDealer');
+const carColorPicker = document.getElementById('carColorPicker');
 const buySmallCarBtn = document.getElementById('buySmallCar');
 const buyFamilyVanBtn = document.getElementById('buyFamilyVan');
 const buySportsCarBtn = document.getElementById('buySportsCar');
@@ -734,6 +737,13 @@ let mysteryBasementPoliceTriggered = false;
 let mysteryBoxRewardCooldown = 0;
 let mysteryPoliceUnits = [];
 let isInMysteryBasement = false;
+const jailPosition = { x: 180, y: 0, z: -255 };
+const jailFloorHeight = 9;
+let jailRoom = null;
+let isInJailInterior = false;
+let jailInterval = null;
+let currentJailFloor = 0;
+let displayedJailFloor = null;
 
 if (houseBought && ownedHouses.length === 0) {
 	ownedHouses.push({ id: 'legacy-house', houseId: 'small', plotIndex: 0 });
@@ -3272,51 +3282,36 @@ document.addEventListener('contextmenu', e => {
 
 function animate() {
 	requestAnimationFrame(animate);
+	createJailInterior();
 	
-	// Gefängnis-Check: Spieler kann sich nicht bewegen
 	if (isPlayerInJail()) {
-		showMessage(`⏰ DU BIST IM GEFÄNGNIS! Noch ${jailTime} Minuten`, 1000);
-		
-		// Gefängnis-Overlay anzeigen
+		// Verbleibende Haftzeit anzeigen
 		if (!document.getElementById('jailOverlay')) {
 			const overlay = document.createElement('div');
 			overlay.id = 'jailOverlay';
 			overlay.innerHTML = `
-				<div style="text-align: center; color: red; font-size: 36px; font-weight: bold;">
-					🔒 GEFÄNGNIS 🔒<br>
-					<span style="font-size: 24px;">Noch ${jailTime} Minuten</span>
+				<div>
+					<strong>GEFÄNGNIS</strong>
+					<span>Noch ${jailTime} Minuten</span>
 				</div>
-			`;
-			overlay.style.cssText = `
-				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				background: rgba(0, 0, 0, 0.8);
-				z-index: 9999;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				font-family: Arial, sans-serif;
 			`;
 			document.body.appendChild(overlay);
 		} else {
-			// Zeit aktualisieren
 			const timeSpan = document.querySelector('#jailOverlay span');
 			if (timeSpan) {
 				timeSpan.textContent = `Noch ${jailTime} Minuten`;
 			}
 		}
-		
-		return; // Keine Bewegung oder Interaktion möglich
+
+		if (!isInJailInterior) return;
 	} else {
-		// Gefängnis-Overlay entfernen wenn frei
 		const overlay = document.getElementById('jailOverlay');
 		if (overlay) {
 			overlay.parentNode.removeChild(overlay);
 		}
 	}
+
+	updatePrisonElevatorMenu();
 	
 	// Polizei-Alarm Check: Warnung während Bewegung
 	if (policeAlert) {
@@ -3429,36 +3424,42 @@ function animate() {
 		// Kollisions- & Gebäude- Eintrittslogik
 		let blocked = false;
 		let targetBuildingIndex = null;
-		for (let i = 0; i < buildingBounds.length; i++) {
-			const b = buildingBounds[i];
-			const inside = nextX > b.minX && nextX < b.maxX && nextZ > b.minZ && nextZ < b.maxZ;
-			if (inside) { targetBuildingIndex = i; break; }
-		}
-		if (currentBuildingIndex === null) {
-			// Spieler ist draußen und möchte evtl. hinein
-			if (targetBuildingIndex !== null) {
-				const b = buildingBounds[targetBuildingIndex];
-				const inDoorX = Math.abs(nextX - b.doorX) < b.doorWidth / 2;
-				const inDoorZ = Math.abs(nextZ - b.doorZ) < 2.0; // Tiefe vor/ hinter Tür
-				if (inDoorX && inDoorZ) {
-					currentBuildingIndex = targetBuildingIndex; // Eintritt erlaubt
-				} else {
-					blocked = true; // gegen Wand gelaufen
-				}
-			}
+		if (isInJailInterior) {
+			const jailHalfSize = 9;
+			blocked = Math.abs(nextX - jailPosition.x) > jailHalfSize ||
+				Math.abs(nextZ - jailPosition.z) > jailHalfSize;
 		} else {
-			// Spieler ist in einem Gebäude
-			if (targetBuildingIndex === currentBuildingIndex) {
-				// bleibt drin – ok
+			for (let i = 0; i < buildingBounds.length; i++) {
+				const b = buildingBounds[i];
+				const inside = nextX > b.minX && nextX < b.maxX && nextZ > b.minZ && nextZ < b.maxZ;
+				if (inside) { targetBuildingIndex = i; break; }
+			}
+			if (currentBuildingIndex === null) {
+				// Spieler ist draußen und möchte evtl. hinein
+				if (targetBuildingIndex !== null) {
+					const b = buildingBounds[targetBuildingIndex];
+					const inDoorX = Math.abs(nextX - b.doorX) < b.doorWidth / 2;
+					const inDoorZ = Math.abs(nextZ - b.doorZ) < 2.0; // Tiefe vor/ hinter Tür
+					if (inDoorX && inDoorZ) {
+						currentBuildingIndex = targetBuildingIndex; // Eintritt erlaubt
+					} else {
+						blocked = true; // gegen Wand gelaufen
+					}
+				}
 			} else {
-				// will raus – nur durch Tür
-				const b = buildingBounds[currentBuildingIndex];
-				const inDoorX = Math.abs(nextX - b.doorX) < b.doorWidth / 2;
-				const inDoorZ = Math.abs(nextZ - b.doorZ) < 2.0;
-				if (inDoorX && inDoorZ) {
-					currentBuildingIndex = null; // verlässt Gebäude
+				// Spieler ist in einem Gebäude
+				if (targetBuildingIndex === currentBuildingIndex) {
+					// bleibt drin – ok
 				} else {
-					blocked = true;
+					// will raus – nur durch Tür
+					const b = buildingBounds[currentBuildingIndex];
+					const inDoorX = Math.abs(nextX - b.doorX) < b.doorWidth / 2;
+					const inDoorZ = Math.abs(nextZ - b.doorZ) < 2.0;
+					if (inDoorX && inDoorZ) {
+						currentBuildingIndex = null; // verlässt Gebäude
+					} else {
+						blocked = true;
+					}
 				}
 			}
 		}
@@ -3932,23 +3933,23 @@ function updatePoliceChaseTimerDisplay() {
 	if (!policeChaseTimerSpan) return;
 
 	if (!policeAlert || wantedLevel < 1) {
-		policeChaseTimerSpan.textContent = 'Jagd: endet nicht';
+		policeChaseTimerSpan.textContent = 'Polizei: keine Suche';
 		policeChaseTimerSpan.style.color = '#bbb';
 		return;
 	}
 
 	if (!policeLoseSightSince) {
-		policeChaseTimerSpan.textContent = 'Jagd: Polizei sieht dich';
+		policeChaseTimerSpan.textContent = 'Polizei: außer Sicht fliehen';
 		policeChaseTimerSpan.style.color = '#ffcc00';
 		return;
 	}
 
-	const loseSightDelay = wantedLevel >= 3 ? 8000 : 4500;
+	const loseSightDelay = 30000;
 	const elapsed = Date.now() - policeLoseSightSince;
 	const remaining = Math.max(0, loseSightDelay - elapsed);
 	const remainingSeconds = (remaining / 1000).toFixed(1);
 
-	policeChaseTimerSpan.textContent = `Jagd: ${remainingSeconds}s`;
+	policeChaseTimerSpan.textContent = `Polizei gibt auf in: ${remainingSeconds}s`;
 	policeChaseTimerSpan.style.color = remaining <= 1000 ? '#ff5555' : '#ffcc00';
 }
 
@@ -4657,8 +4658,13 @@ function closeShop() {
 }
 
 // Autohändler Funktionen
+function getSelectedCarColor() {
+	return Number.parseInt(carColorPicker.value.slice(1), 16);
+}
+
 function buySmallCar() {
 	if (money >= 500) {
+		const carColor = getSelectedCarColor();
 		money -= 500;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4670,13 +4676,13 @@ function buySmallCar() {
 			id: carId,
 			type: 'small',
 			name: 'Kleiner Wagen',
-			color: 0xFF4444
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('small', spawnPos.x, spawnPos.z, 0xFF4444);
+		const newCar = createCar('small', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Kleiner Wagen';
 		newCar.userData.isOwned = true;
@@ -4714,6 +4720,7 @@ function buySmallCar() {
 
 function buyFamilyVan() {
 	if (money >= 800) {
+		const carColor = getSelectedCarColor();
 		money -= 800;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4725,13 +4732,13 @@ function buyFamilyVan() {
 			id: carId,
 			type: 'van',
 			name: 'Familien-Van',
-			color: 0x4444FF
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('van', spawnPos.x, spawnPos.z, 0x4444FF);
+		const newCar = createCar('van', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Familien-Van';
 		newCar.userData.type = 'van'; // Typ hinzufügen
@@ -4755,6 +4762,7 @@ function buyFamilyVan() {
 
 function buySportsCar() {
 	if (money >= 1200) {
+		const carColor = getSelectedCarColor();
 		money -= 1200;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4766,13 +4774,13 @@ function buySportsCar() {
 			id: carId,
 			type: 'sports',
 			name: 'Sportwagen',
-			color: 0xFFFF44
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('sports', spawnPos.x, spawnPos.z, 0xFFFF44);
+		const newCar = createCar('sports', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Sportwagen';
 		newCar.userData.type = 'sports'; // Typ hinzufügen
@@ -4796,6 +4804,7 @@ function buySportsCar() {
 
 function buyPickupTruck() {
 	if (money >= 1000) {
+		const carColor = getSelectedCarColor();
 		money -= 1000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4807,13 +4816,13 @@ function buyPickupTruck() {
 			id: carId,
 			type: 'truck',
 			name: 'Pickup Truck',
-			color: 0x44FF44
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('truck', spawnPos.x, spawnPos.z, 0x44FF44);
+		const newCar = createCar('truck', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Pickup Truck';
 		newCar.userData.isOwned = true;
@@ -4836,6 +4845,7 @@ function buyPickupTruck() {
 
 function buySUV() {
 	if (money >= 1500) {
+		const carColor = getSelectedCarColor();
 		money -= 1500;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4847,13 +4857,13 @@ function buySUV() {
 			id: carId,
 			type: 'suv',
 			name: 'SUV',
-			color: 0xFF8844
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('suv', spawnPos.x, spawnPos.z, 0xFF8844);
+		const newCar = createCar('suv', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'SUV';
 		newCar.userData.isOwned = true;
@@ -4876,6 +4886,7 @@ function buySUV() {
 
 function buyConvertible() {
 	if (money >= 1800) {
+		const carColor = getSelectedCarColor();
 		money -= 1800;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4887,13 +4898,13 @@ function buyConvertible() {
 			id: carId,
 			type: 'convertible',
 			name: 'Cabriolet',
-			color: 0xFF44FF
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('convertible', spawnPos.x, spawnPos.z, 0xFF44FF);
+		const newCar = createCar('convertible', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Cabriolet';
 		newCar.userData.isOwned = true;
@@ -4916,6 +4927,7 @@ function buyConvertible() {
 
 function buyLuxury() {
 	if (money >= 2500) {
+		const carColor = getSelectedCarColor();
 		money -= 2500;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4927,13 +4939,13 @@ function buyLuxury() {
 			id: carId,
 			type: 'luxury',
 			name: 'Luxuslimousine',
-			color: 0x444444
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('luxury', spawnPos.x, spawnPos.z, 0x444444);
+		const newCar = createCar('luxury', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Luxuslimousine';
 		newCar.userData.isOwned = true;
@@ -4956,6 +4968,7 @@ function buyLuxury() {
 
 function buyBus() {
 	if (money >= 3000) {
+		const carColor = getSelectedCarColor();
 		money -= 3000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
@@ -4967,13 +4980,13 @@ function buyBus() {
 			id: carId,
 			type: 'bus',
 			name: 'Bus',
-			color: 0xFFFF88
+			color: carColor
 		});
 		saveVehicleData();
 		
 		// Neues Auto neben dem Haus spawnen
 		const spawnPos = getHouseSpawnPosition();
-		const newCar = createCar('bus', spawnPos.x, spawnPos.z, 0xFFFF88);
+		const newCar = createCar('bus', spawnPos.x, spawnPos.z, carColor);
 		newCar.userData.id = carId;
 		newCar.userData.name = 'Bus';
 		newCar.userData.isOwned = true;
@@ -5000,6 +5013,7 @@ function buyPerformanceCar(type, name, color, price) {
 		return;
 	}
 
+	color = getSelectedCarColor();
 	money -= price;
 	moneySpan.textContent = `Geld: ${money} €`;
 	const carId = Date.now() + Math.random();
@@ -6225,14 +6239,158 @@ function planEscape() {
 	}, 2000);
 }
 
+function createJailInterior() {
+	if (jailRoom) return;
+
+	const room = new THREE.Group();
+	room.position.set(jailPosition.x, jailPosition.y, jailPosition.z);
+	const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x59636d });
+	const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x303841 });
+	const barMaterial = new THREE.MeshPhongMaterial({ color: 0x9da8b2, metalness: 0.5, roughness: 0.45 });
+	const glassMaterial = new THREE.MeshPhongMaterial({ color: 0x91b9d6, transparent: true, opacity: 0.42 });
+
+	for (let floorIndex = 0; floorIndex < 5; floorIndex++) {
+		const floorY = floorIndex * jailFloorHeight;
+		const floor = new THREE.Mesh(new THREE.BoxGeometry(28, 0.45, 22), floorMaterial);
+		floor.position.y = floorY;
+		room.add(floor);
+
+		const backWall = new THREE.Mesh(new THREE.BoxGeometry(28, jailFloorHeight, 0.6), wallMaterial);
+		backWall.position.set(0, floorY + jailFloorHeight / 2, -11);
+		room.add(backWall);
+		const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.6, jailFloorHeight, 22), wallMaterial);
+		leftWall.position.set(-14, floorY + jailFloorHeight / 2, 0);
+		room.add(leftWall);
+		const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.6, jailFloorHeight, 22), wallMaterial);
+		rightWall.position.set(14, floorY + jailFloorHeight / 2, 0);
+		room.add(rightWall);
+
+		const front = new THREE.Mesh(
+			new THREE.BoxGeometry(28, jailFloorHeight, 0.4),
+			floorIndex === 0 ? glassMaterial : barMaterial
+		);
+		front.position.set(0, floorY + jailFloorHeight / 2, 11);
+		room.add(front);
+
+		if (floorIndex === 0) {
+			const receptionDesk = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 2.5), new THREE.MeshPhongMaterial({ color: 0x1e4c70 }));
+			receptionDesk.position.set(-5, floorY + 1, -4);
+			room.add(receptionDesk);
+			const receptionSign = createPrisonLabel('EMPFANG', 7, 1.8);
+			receptionSign.position.set(-5, floorY + 5, -9.5);
+			room.add(receptionSign);
+		} else {
+			[-7, 7].forEach(cellX => {
+				const divider = new THREE.Mesh(new THREE.BoxGeometry(0.35, 6, 13), barMaterial);
+				divider.position.set(cellX, floorY + 3, -3);
+				room.add(divider);
+				const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshPhongMaterial({ color: 0x71808c }));
+				bed.position.set(cellX + (cellX < 0 ? -3 : 3), floorY + 1.3, -5);
+				room.add(bed);
+			});
+			const floorLabel = createPrisonLabel(`ETAGE ${floorIndex} - ZELLEN`, 9, 1.8);
+			floorLabel.position.set(0, floorY + 6.5, -9.5);
+			room.add(floorLabel);
+		}
+
+		const ceilingLight = new THREE.PointLight(0xd8e8ff, 0.75, 26);
+		ceilingLight.position.set(0, floorY + 7, 0);
+		room.add(ceilingLight);
+	}
+
+	const roof = new THREE.Mesh(new THREE.BoxGeometry(28, 0.6, 22), new THREE.MeshPhongMaterial({ color: 0x202830 }));
+	roof.position.y = 5 * jailFloorHeight;
+	room.add(roof);
+	const elevator = new THREE.Mesh(new THREE.BoxGeometry(5, 5 * jailFloorHeight, 5), new THREE.MeshPhongMaterial({ color: 0x4a5662 }));
+	elevator.position.set(0, 5 * jailFloorHeight / 2, 5);
+	room.add(elevator);
+	const elevatorDoor = new THREE.Mesh(new THREE.BoxGeometry(3.5, 5.5, 0.25), new THREE.MeshPhongMaterial({ color: 0xb8c4ce }));
+	elevatorDoor.position.set(0, 3, 7.55);
+	room.add(elevatorDoor);
+	const elevatorLabel = createPrisonLabel('AUFZUG', 6, 1.7);
+	elevatorLabel.position.set(0, 7, 7.8);
+	room.add(elevatorLabel);
+	scene.add(room);
+	jailRoom = room;
+}
+
+function createPrisonLabel(text, width, height) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 128;
+	const context = canvas.getContext('2d');
+	context.fillStyle = '#edf4fa';
+	context.font = 'bold 48px Arial';
+	context.textAlign = 'center';
+	context.fillText(text, 256, 78);
+	const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }));
+	label.scale.set(width, height, 1);
+	return label;
+}
+
+function updatePrisonElevatorMenu() {
+	if (!jailRoom) return;
+	const elevatorDistance = Math.hypot(player.position.x - jailPosition.x, player.position.z - (jailPosition.z + 5));
+	const canUseElevator = isInJailInterior && elevatorDistance < 5;
+	prisonElevatorPanel.style.display = canUseElevator ? 'block' : 'none';
+	if (!canUseElevator) {
+		displayedJailFloor = null;
+		return;
+	}
+	if (displayedJailFloor === currentJailFloor) return;
+
+	prisonFloorButtons.innerHTML = '';
+	for (let floorIndex = 0; floorIndex < 5; floorIndex++) {
+		if (floorIndex === currentJailFloor) continue;
+		const button = document.createElement('button');
+		button.className = 'prisonFloorButton';
+		button.dataset.floor = floorIndex;
+		button.textContent = floorIndex === 0 ? 'Erdgeschoss - Empfang' : `Etage ${floorIndex} - Zellen`;
+		prisonFloorButtons.appendChild(button);
+	}
+	displayedJailFloor = currentJailFloor;
+}
+
+prisonFloorButtons.addEventListener('click', event => {
+	const floorButton = event.target.closest('.prisonFloorButton');
+	if (!floorButton) return;
+	currentJailFloor = Number.parseInt(floorButton.dataset.floor, 10);
+	displayedJailFloor = null;
+	player.position.set(jailPosition.x, currentJailFloor * jailFloorHeight, jailPosition.z + 5);
+	showMessage(`Aufzug: ${currentJailFloor === 0 ? 'Erdgeschoss' : `Etage ${currentJailFloor}`}`, 1500);
+});
+
+function enterJailInterior() {
+	createJailInterior();
+	if (isInVehicle) exitVehicle();
+	isInMysteryBasement = false;
+	currentBuildingIndex = null;
+	isInJailInterior = true;
+	currentJailFloor = 1;
+	displayedJailFloor = null;
+	player.position.set(jailPosition.x, currentJailFloor * jailFloorHeight, jailPosition.z + 5);
+}
+
+function leaveJailInterior() {
+	isInJailInterior = false;
+	currentBuildingIndex = null;
+	currentJailFloor = 0;
+	displayedJailFloor = null;
+	player.position.set(jailPosition.x, 0, jailPosition.z + 15);
+}
+
 function startJailTime() {
-	showMessage('🔒 DU BIST IM GEFÄNGNIS! Bewegung blockiert.', 5000);
+	if (jailInterval) return;
+	enterJailInterior();
+	showMessage(`🔒 DU BIST IM GEFÄNGNIS! Noch ${jailTime} Minuten.`, 5000);
 	
-	const jailInterval = setInterval(() => {
+	jailInterval = setInterval(() => {
 		jailTime--;
 		
 		if (jailTime <= 0) {
 			clearInterval(jailInterval);
+			jailInterval = null;
+			leaveJailInterior();
 			showMessage('🚪 DU BIST FREI! Gefängnisstrafe beendet.', 4000);
 			showMessage('🕊️ Du kannst wieder spielen!', 3000);
 			wantedLevel = 0;
@@ -6340,7 +6498,7 @@ function updatePoliceLoseInterest() {
 	}
 
 	const loseSightDistance = 220;
-	const loseSightDelay = wantedLevel >= 3 ? 8000 : 4500;
+	const loseSightDelay = 30000;
 
 	if (nearestPoliceDistance > loseSightDistance) {
 		if (!policeLoseSightSince) {

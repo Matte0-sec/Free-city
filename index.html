@@ -40,6 +40,11 @@
 		<button id="fullscreenBtn">Vollbild</button>
 	</div>
 	<div id="messageBox" style="display: none;"></div>
+	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
+		<h3>AUFZUG</h3>
+		<p>Etage wählen</p>
+		<div id="prisonFloorButtons"></div>
+	</div>
 	<div id="shopPanel" style="display: none;">
 		<h2>Supermarkt</h2>
 		<button id="buyApple">Apfel kaufen (10€)</button>
@@ -72,6 +77,10 @@
 	</div>
 	<div id="carDealerPanel" style="display: none;">
 		<h2>🚗 Autohaus</h2>
+		<label class="carColorControl" for="carColorPicker">
+			<span>Farbe für dein neues Auto</span>
+			<input id="carColorPicker" type="color" value="#ff4444" aria-label="Autofarbe auswählen">
+		</label>
 		<div id="carList">
 			<div class="car-item">
 				<h3>🚙 Kleiner Wagen</h3>

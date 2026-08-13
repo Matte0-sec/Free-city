@@ -47,6 +47,76 @@ h1 {
 	padding: 4px 8px;
 	border-radius: 6px;
 }
+#jailOverlay {
+	position: fixed;
+	top: 50%;
+	right: 24px;
+	z-index: 1001;
+	transform: translateY(-50%);
+	padding: 14px 18px;
+	border: 1px solid #bf4444;
+	border-radius: 6px;
+	background: rgba(38, 22, 22, 0.92);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	color: #fff;
+	font-size: 1rem;
+	text-align: center;
+	pointer-events: none;
+}
+#jailOverlay strong, #jailOverlay span {
+	display: block;
+}
+#jailOverlay strong {
+	margin-bottom: 5px;
+	color: #ff7777;
+}
+#jailOverlay span {
+	font-weight: bold;
+}
+#prisonElevatorPanel {
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: 1001;
+	width: 190px;
+	padding: 14px;
+	border: 1px solid #9ba7b3;
+	border-radius: 6px;
+	background: rgba(24, 29, 34, 0.95);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	color: #fff;
+	text-align: left;
+}
+#prisonElevatorPanel h3, #prisonElevatorPanel p {
+	margin: 0;
+}
+#prisonElevatorPanel h3 {
+	color: #d7e5f2;
+	font-size: 1rem;
+}
+#prisonElevatorPanel p {
+	margin: 4px 0 10px;
+	color: #b9c3cc;
+	font-size: 0.85rem;
+}
+#prisonFloorButtons {
+	display: grid;
+	gap: 6px;
+}
+.prisonFloorButton {
+	padding: 8px 10px;
+	border: 1px solid #596775;
+	border-radius: 4px;
+	background: #37424d;
+	color: #fff;
+	font: inherit;
+	font-size: 0.85rem;
+	text-align: left;
+	cursor: pointer;
+}
+.prisonFloorButton:hover {
+	background: #506272;
+}
 #healthWidget {
 	display: inline-block;
 	vertical-align: middle;
@@ -446,6 +516,28 @@ h1 {
 	color: #FFD700;
 	font-size: 1.4em;
 	text-align: center;
+}
+.carColorControl {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.2);
+	color: #fff;
+	font-size: 0.9em;
+}
+.carColorControl input {
+	width: 42px;
+	height: 30px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	cursor: pointer;
 }
 #fashionShopPanel {
 	position: fixed;
