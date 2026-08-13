@@ -49,6 +49,11 @@ const startMoney = document.getElementById('startMoney');
 const deviceModeBtn = document.getElementById('deviceModeBtn');
 const deviceModeLabel = document.getElementById('deviceModeLabel');
 const startGameBtn = document.getElementById('startGameBtn');
+const playerNameInput = document.getElementById('playerNameInput');
+const roomCodeInput = document.getElementById('roomCodeInput');
+const multiplayerStatus = document.getElementById('multiplayerStatus');
+const multiplayerRoomLabel = document.getElementById('multiplayerRoomLabel');
+const multiplayerPlayerLabel = document.getElementById('multiplayerPlayerLabel');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -3037,6 +3042,11 @@ player.children[5].name = 'playerRightArm';
 player.children[6].name = 'playerLeftLeg';
 player.children[7].name = 'playerRightLeg';
 scene.add(player);
+let multiplayerSocket = null;
+let remotePlayer = null;
+let remotePlayerId = null;
+let remotePlayerTarget = null;
+let lastMultiplayerUpdate = 0;
 
 const fashionCatalog = {
 	outfit: {
@@ -3362,6 +3372,7 @@ function initializeMobileInputs() {
 
 function setupStartScreen() {
 	let phoneMode = false;
+	roomCodeInput.value = Math.random().toString(36).slice(2, 8).toUpperCase();
 	startMoney.textContent = `Geld: ${money} €`;
 	deviceModeBtn.addEventListener('click', () => {
 		phoneMode = !phoneMode;
@@ -3374,6 +3385,7 @@ function setupStartScreen() {
 		document.body.classList.toggle('mobile-controls-enabled', phoneMode);
 		if (phoneMode) initializeMobileInputs();
 		startOverlay.style.display = 'none';
+		connectToMultiplayerRoom();
 	});
 
 	try {
@@ -3392,6 +3404,102 @@ function setupStartScreen() {
 	} catch (error) {
 		console.warn('Character preview could not be created.', error);
 	}
+}
+
+function createPlayerNameLabel(name) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 256;
+	canvas.height = 64;
+	const context = canvas.getContext('2d');
+	context.fillStyle = 'rgba(8, 18, 28, 0.8)';
+	context.fillRect(0, 4, 256, 56);
+	context.fillStyle = '#ffffff';
+	context.font = 'bold 28px Arial';
+	context.textAlign = 'center';
+	context.fillText(name, 128, 42);
+	const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }));
+	label.scale.set(3.5, 0.9, 1);
+	label.position.y = 5.2;
+	return label;
+}
+
+function showRemotePlayer(playerData) {
+	if (!playerData || playerData.id === multiplayerSocket?.id) return;
+	if (remotePlayer && remotePlayerId === playerData.id) {
+		remotePlayerTarget = playerData;
+		return;
+	}
+	if (remotePlayer?.parent) remotePlayer.parent.remove(remotePlayer);
+	remotePlayer = createHuman();
+	remotePlayerId = playerData.id;
+	remotePlayer.position.set(playerData.x || 0, 0, playerData.z || 0);
+	remotePlayer.add(createPlayerNameLabel(playerData.name || 'Freund'));
+	remotePlayerTarget = { ...playerData };
+	scene.add(remotePlayer);
+	multiplayerPlayerLabel.textContent = `${playerData.name || 'Freund'} ist im Raum`;
+}
+
+function removeRemotePlayer() {
+	if (remotePlayer?.parent) remotePlayer.parent.remove(remotePlayer);
+	remotePlayer = null;
+	remotePlayerId = null;
+	remotePlayerTarget = null;
+	multiplayerPlayerLabel.textContent = 'Alleine im Raum';
+}
+
+function connectToMultiplayerRoom() {
+	if (typeof window.io !== 'function') {
+		showMessage('Starte das Spiel über den Multiplayer-Server.', 3500);
+		return;
+	}
+	const playerName = playerNameInput.value.trim().slice(0, 16) || 'Spieler';
+	const roomCode = roomCodeInput.value.trim().toUpperCase().slice(0, 12);
+	if (!roomCode) {
+		showMessage('Bitte gib einen Raumcode ein.', 2500);
+		return;
+	}
+
+	multiplayerSocket = window.io();
+	multiplayerSocket.on('connect', () => {
+		multiplayerSocket.emit('join-room', { roomCode, playerName });
+	});
+	multiplayerSocket.on('room-joined', data => {
+		multiplayerStatus.style.display = 'flex';
+		multiplayerRoomLabel.textContent = `Raum: ${data.roomCode}`;
+		data.players.forEach(showRemotePlayer);
+	});
+	multiplayerSocket.on('player-joined', data => showRemotePlayer(data.player));
+	multiplayerSocket.on('player-moved', data => {
+		if (data.id !== multiplayerSocket.id) showRemotePlayer(data);
+	});
+	multiplayerSocket.on('player-left', data => {
+		if (data.id === remotePlayerId) removeRemotePlayer();
+	});
+	multiplayerSocket.on('room-count', count => {
+		if (count < 2) multiplayerPlayerLabel.textContent = 'Alleine im Raum';
+	});
+	multiplayerSocket.on('room-full', () => {
+		showMessage('Dieser Raum ist bereits voll.', 3500);
+		multiplayerSocket.disconnect();
+		multiplayerSocket = null;
+	});
+	multiplayerSocket.on('room-error', message => showMessage(message, 3000));
+	multiplayerSocket.on('connect_error', () => showMessage('Multiplayer-Server nicht erreichbar.', 3500));
+}
+
+function updateMultiplayer() {
+	if (remotePlayer && remotePlayerTarget) {
+		remotePlayer.position.x += (remotePlayerTarget.x - remotePlayer.position.x) * 0.22;
+		remotePlayer.position.z += (remotePlayerTarget.z - remotePlayer.position.z) * 0.22;
+		remotePlayer.rotation.y = remotePlayerTarget.rotation || 0;
+	}
+	if (!multiplayerSocket?.connected || Date.now() - lastMultiplayerUpdate < 75) return;
+	multiplayerSocket.emit('player-move', {
+		x: player.position.x,
+		z: player.position.z,
+		rotation: player.rotation.y
+	});
+	lastMultiplayerUpdate = Date.now();
 }
 
 setupStartScreen();
@@ -4011,6 +4119,7 @@ function animate() {
 		showMessage(`👥 NPCs haben gearbeitet: +${npcIncome}€ in ihrer Bank`, 2000);
 	}
 
+	updateMultiplayer();
 	renderer.render(scene, camera);
 }
 
