@@ -5,7 +5,12 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: 'https://matte0-sec.github.io',
+    methods: ['GET', 'POST']
+  }
+});
 const rooms = new Map();
 const maxPlayersPerRoom = 2;
 

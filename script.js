@@ -3459,7 +3459,7 @@ function connectToMultiplayerRoom() {
 		return;
 	}
 
-	multiplayerSocket = window.io();
+	multiplayerSocket = window.io('https://matte0-sec.github.io/Free-city/');
 	multiplayerSocket.on('connect', () => {
 		multiplayerSocket.emit('join-room', { roomCode, playerName });
 	});
