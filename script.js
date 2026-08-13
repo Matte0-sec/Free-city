@@ -43,6 +43,12 @@ const prisonElevatorPanel = document.getElementById('prisonElevatorPanel');
 const prisonFloorButtons = document.getElementById('prisonFloorButtons');
 const prisonReceptionPanel = document.getElementById('prisonReceptionPanel');
 const prisonerList = document.getElementById('prisonerList');
+const startOverlay = document.getElementById('startOverlay');
+const startCharacterPreview = document.getElementById('startCharacterPreview');
+const startMoney = document.getElementById('startMoney');
+const deviceModeBtn = document.getElementById('deviceModeBtn');
+const deviceModeLabel = document.getElementById('deviceModeLabel');
+const startGameBtn = document.getElementById('startGameBtn');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -3268,6 +3274,127 @@ for (let i = 0; i < 8; i++) {
 let keys = {};
 document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+const mobileJoystick = document.getElementById('mobileJoystick');
+const mobileJoystickKnob = document.getElementById('mobileJoystickKnob');
+const mobileInteractBtn = document.getElementById('mobileInteractBtn');
+const mobileReceptionBtn = document.getElementById('mobileReceptionBtn');
+const mobilePunchBtn = document.getElementById('mobilePunchBtn');
+let mobileJoystickPointerId = null;
+let mobileCameraPointer = null;
+let mobileControlsEnabled = false;
+let mobileInputsInitialized = false;
+
+function setMobileMovement(horizontal, vertical) {
+	keys['w'] = vertical < -0.25;
+	keys['s'] = vertical > 0.25;
+	keys['a'] = horizontal < -0.25;
+	keys['d'] = horizontal > 0.25;
+}
+
+function updateMobileJoystick(event) {
+	const bounds = mobileJoystick.getBoundingClientRect();
+	const centerX = bounds.left + bounds.width / 2;
+	const centerY = bounds.top + bounds.height / 2;
+	const maxOffset = bounds.width * 0.3;
+	const offsetX = Math.max(-maxOffset, Math.min(maxOffset, event.clientX - centerX));
+	const offsetY = Math.max(-maxOffset, Math.min(maxOffset, event.clientY - centerY));
+	mobileJoystickKnob.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+	setMobileMovement(offsetX / maxOffset, offsetY / maxOffset);
+}
+
+function resetMobileJoystick() {
+	mobileJoystickPointerId = null;
+	mobileJoystickKnob.style.transform = 'translate(0, 0)';
+	setMobileMovement(0, 0);
+}
+
+function triggerMobileKey(key) {
+	document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+	document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+}
+
+function initializeMobileInputs() {
+	if (mobileInputsInitialized) return;
+	mobileInputsInitialized = true;
+	mobileJoystick.addEventListener('pointerdown', event => {
+		if (!mobileControlsEnabled) return;
+		mobileJoystickPointerId = event.pointerId;
+		mobileJoystick.setPointerCapture(event.pointerId);
+		updateMobileJoystick(event);
+	});
+	mobileJoystick.addEventListener('pointermove', event => {
+		if (mobileControlsEnabled && event.pointerId === mobileJoystickPointerId) updateMobileJoystick(event);
+	});
+	mobileJoystick.addEventListener('pointerup', resetMobileJoystick);
+	mobileJoystick.addEventListener('pointercancel', resetMobileJoystick);
+
+	container.addEventListener('pointerdown', event => {
+		if (!mobileControlsEnabled) return;
+		if (event.target.closest('#mobileControls') || event.clientX < window.innerWidth * 0.42) return;
+		mobileCameraPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+		container.setPointerCapture(event.pointerId);
+	});
+	container.addEventListener('pointermove', event => {
+		if (!mobileControlsEnabled || !mobileCameraPointer || event.pointerId !== mobileCameraPointer.id) return;
+		const deltaX = event.clientX - mobileCameraPointer.x;
+		const deltaY = event.clientY - mobileCameraPointer.y;
+		camAngleY -= deltaX * 0.01;
+		camAngleX = Math.max(0.18, Math.min(1.2, camAngleX - deltaY * 0.01));
+		mobileCameraPointer.x = event.clientX;
+		mobileCameraPointer.y = event.clientY;
+	});
+	container.addEventListener('pointerup', event => {
+		if (mobileCameraPointer && event.pointerId === mobileCameraPointer.id) mobileCameraPointer = null;
+	});
+	container.addEventListener('pointercancel', () => { mobileCameraPointer = null; });
+	mobileInteractBtn.addEventListener('click', () => triggerMobileKey('e'));
+	mobileReceptionBtn.addEventListener('click', () => triggerMobileKey('r'));
+	mobilePunchBtn.addEventListener('pointerdown', event => {
+		if (!mobileControlsEnabled) return;
+		event.preventDefault();
+		if (!isPunching) {
+			isPunching = true;
+			punchTime = Date.now();
+		}
+	});
+}
+
+function setupStartScreen() {
+	let phoneMode = false;
+	startMoney.textContent = `Geld: ${money} €`;
+	deviceModeBtn.addEventListener('click', () => {
+		phoneMode = !phoneMode;
+		deviceModeBtn.textContent = phoneMode ? '📱' : '💻';
+		deviceModeLabel.textContent = phoneMode ? 'Handy-Steuerung' : 'Computer-Steuerung';
+	});
+
+	startGameBtn.addEventListener('click', () => {
+		mobileControlsEnabled = phoneMode;
+		document.body.classList.toggle('mobile-controls-enabled', phoneMode);
+		if (phoneMode) initializeMobileInputs();
+		startOverlay.style.display = 'none';
+	});
+
+	try {
+		const previewScene = new THREE.Scene();
+		const previewCamera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+		previewCamera.position.set(0, 2.5, 8);
+		previewCamera.lookAt(0, 2, 0);
+		const previewLight = new THREE.HemisphereLight(0xeaf7ff, 0x26323d, 2.2);
+		previewScene.add(previewLight);
+		previewScene.add(player.clone(true));
+		const previewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+		previewRenderer.setSize(180, 180);
+		previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		startCharacterPreview.appendChild(previewRenderer.domElement);
+		previewRenderer.render(previewScene, previewCamera);
+	} catch (error) {
+		console.warn('Character preview could not be created.', error);
+	}
+}
+
+setupStartScreen();
 
 // Punch-System
 let isPunching = false;

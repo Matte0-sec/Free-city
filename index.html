@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 	<title>Free City 3D</title>
 	<link rel="stylesheet" href="style.css">
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
@@ -10,6 +10,28 @@
 <body>
 	<h1>Free City 3D</h1>
 	<div id="gameContainer"></div>
+	<div id="startOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+		<section id="startPanel">
+			<h2 id="startTitle">Free City 3D</h2>
+			<div id="startCharacterPreview" aria-label="Dein Charakter"></div>
+			<p id="startMoney">Geld: 0 €</p>
+			<div id="deviceMode">
+				<button id="deviceModeBtn" type="button" aria-label="Spielgerät wechseln" title="Spielgerät wechseln">💻</button>
+				<span id="deviceModeLabel">Computer-Steuerung</span>
+			</div>
+			<button id="startGameBtn" type="button">Spiel starten</button>
+		</section>
+	</div>
+	<div id="mobileControls" aria-label="Mobile Spielsteuerung">
+		<div id="mobileJoystick" aria-label="Bewegen">
+			<div id="mobileJoystickKnob"></div>
+		</div>
+		<div id="mobileActionButtons">
+			<button id="mobileInteractBtn" aria-label="Interagieren">E</button>
+			<button id="mobileReceptionBtn" aria-label="Empfang oder Bank">R</button>
+			<button id="mobilePunchBtn" aria-label="Schlagen">Schlag</button>
+		</div>
+	</div>
 	<div id="mapNavigator">
 		<div class="mapNavigatorTitle">Karten-Navigation</div>
 		<div class="mapNavigatorRow">
