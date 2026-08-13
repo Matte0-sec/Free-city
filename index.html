@@ -6,6 +6,7 @@
 	<title>Free City 3D</title>
 	<link rel="stylesheet" href="style.css">
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 	<h1>Free City 3D</h1>
@@ -19,8 +20,18 @@
 				<button id="deviceModeBtn" type="button" aria-label="Spielgerät wechseln" title="Spielgerät wechseln">💻</button>
 				<span id="deviceModeLabel">Computer-Steuerung</span>
 			</div>
+			<label class="multiplayerField" for="playerNameInput">Dein Name
+				<input id="playerNameInput" type="text" value="Spieler" maxlength="16" autocomplete="nickname">
+			</label>
+			<label class="multiplayerField" for="roomCodeInput">Privater Raumcode
+				<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
+			</label>
 			<button id="startGameBtn" type="button">Spiel starten</button>
 		</section>
+	</div>
+	<div id="multiplayerStatus" style="display: none;">
+		<span id="multiplayerRoomLabel"></span>
+		<span id="multiplayerPlayerLabel">Alleine im Raum</span>
 	</div>
 	<div id="mobileControls" aria-label="Mobile Spielsteuerung">
 		<div id="mobileJoystick" aria-label="Bewegen">
