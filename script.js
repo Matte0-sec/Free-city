@@ -6282,7 +6282,14 @@ document.addEventListener('keydown', e => {
 	}
 	if (e.key.toLowerCase() === 'r') {
 		if (tryOpenPrisonReception()) return;
-		tryWithdraw();
+		const bank = { x: 160, z: 140 };
+		const distX = Math.abs(player.position.x - bank.x);
+		const distZ = Math.abs(player.position.z - (bank.z + 10.3));
+		if (distX < 15 && distZ < 12) {
+			openBankRobberyPanel();
+			return;
+		}
+		// Dialog mit NPC starten, wenn nahe genug
 	}
 });
 
