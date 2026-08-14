@@ -51,6 +51,7 @@ const deviceModeLabel = document.getElementById('deviceModeLabel');
 const startGameBtn = document.getElementById('startGameBtn');
 const playerNameInput = document.getElementById('playerNameInput');
 const roomCodeInput = document.getElementById('roomCodeInput');
+const liveRoomsList = document.getElementById('liveRoomsList');
 const multiplayerStatus = document.getElementById('multiplayerStatus');
 const multiplayerRoomLabel = document.getElementById('multiplayerRoomLabel');
 const multiplayerPlayerLabel = document.getElementById('multiplayerPlayerLabel');
@@ -3043,6 +3044,7 @@ player.children[6].name = 'playerLeftLeg';
 player.children[7].name = 'playerRightLeg';
 scene.add(player);
 let multiplayerSocket = null;
+let lobbySocket = null;
 let remotePlayer = null;
 let remotePlayerId = null;
 let remotePlayerTarget = null;
@@ -3374,6 +3376,7 @@ function setupStartScreen() {
 	let phoneMode = false;
 	roomCodeInput.value = Math.random().toString(36).slice(2, 8).toUpperCase();
 	startMoney.textContent = `Geld: ${money} €`;
+	connectToLobby();
 	deviceModeBtn.addEventListener('click', () => {
 		phoneMode = !phoneMode;
 		deviceModeBtn.textContent = phoneMode ? '📱' : '💻';
@@ -3447,6 +3450,46 @@ function removeRemotePlayer() {
 	multiplayerPlayerLabel.textContent = 'Alleine im Raum';
 }
 
+function renderLiveRooms(rooms) {
+	liveRoomsList.replaceChildren();
+	if (!rooms.length) {
+		liveRoomsList.textContent = 'Im Moment sind keine Raeume offen.';
+		return;
+	}
+	rooms.forEach(room => {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'liveRoomButton';
+		button.disabled = room.players >= room.maxPlayers;
+		button.textContent = room.code;
+		const count = document.createElement('span');
+		count.className = 'liveRoomCount';
+		count.textContent = `${room.players}/${room.maxPlayers}`;
+		button.appendChild(count);
+		button.addEventListener('click', () => {
+			roomCodeInput.value = room.code;
+			roomCodeInput.focus();
+		});
+		liveRoomsList.appendChild(button);
+	});
+}
+
+function connectToLobby() {
+	if (typeof window.io !== 'function') {
+		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
+		return;
+	}
+	lobbySocket = window.io('https://free-city.onrender.com', {
+		transports: ['polling'],
+		upgrade: false
+	});
+	lobbySocket.on('connect', () => lobbySocket.emit('get-rooms'));
+	lobbySocket.on('rooms-updated', renderLiveRooms);
+	lobbySocket.on('connect_error', () => {
+		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
+	});
+}
+
 function connectToMultiplayerRoom() {
 	if (typeof window.io !== 'function') {
 		showMessage('Starte das Spiel über den Multiplayer-Server.', 3500);
@@ -3459,13 +3502,13 @@ function connectToMultiplayerRoom() {
 		return;
 	}
 
-	multiplayerSocket = window.io('https://free-city.onrender.com', {
+	multiplayerSocket = lobbySocket || window.io('https://free-city.onrender.com', {
 		transports: ['polling'],
 		upgrade: false
 	});
-	multiplayerSocket.on('connect', () => {
-		multiplayerSocket.emit('join-room', { roomCode, playerName });
-	});
+	const joinRoom = () => multiplayerSocket.emit('join-room', { roomCode, playerName });
+	if (multiplayerSocket.connected) joinRoom();
+	else multiplayerSocket.once('connect', joinRoom);
 	multiplayerSocket.on('room-joined', data => {
 		multiplayerStatus.style.display = 'flex';
 		multiplayerRoomLabel.textContent = `Raum: ${data.roomCode}`;

@@ -21,8 +21,22 @@ function sanitizeText(value, fallback, maxLength) {
 	return (text || fallback).slice(0, maxLength);
 }
 
+function getLiveRooms() {
+	return [...rooms.entries()].map(([code, players]) => ({
+		code,
+		players: players.length,
+		maxPlayers: maxPlayersPerRoom
+	}));
+}
+
+function broadcastLiveRooms() {
+	io.emit('rooms-updated', getLiveRooms());
+}
+
 io.on('connection', socket => {
 	let roomCode = null;
+	socket.emit('rooms-updated', getLiveRooms());
+	socket.on('get-rooms', () => socket.emit('rooms-updated', getLiveRooms()));
 
 	socket.on('join-room', data => {
 		const requestedRoom = sanitizeText(data?.roomCode, '', 12).toUpperCase();
@@ -46,6 +60,7 @@ io.on('connection', socket => {
 		socket.emit('room-joined', { roomCode, players: room });
 		socket.to(roomCode).emit('player-joined', { player });
 		io.to(roomCode).emit('room-count', room.length);
+		broadcastLiveRooms();
 	});
 
 	socket.on('player-move', state => {
@@ -66,6 +81,7 @@ io.on('connection', socket => {
 		io.to(roomCode).emit('player-left', { id: socket.id });
 		if (room.length === 0) rooms.delete(roomCode);
 		else io.to(roomCode).emit('room-count', room.length);
+		broadcastLiveRooms();
 	});
 });
 
