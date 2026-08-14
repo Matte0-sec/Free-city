@@ -3459,7 +3459,10 @@ function connectToMultiplayerRoom() {
 		return;
 	}
 
-	multiplayerSocket = window.io('https://free-city.onrender.com');
+	multiplayerSocket = window.io('https://free-city.onrender.com', {
+		transports: ['polling'],
+		upgrade: false
+	});
 	multiplayerSocket.on('connect', () => {
 		multiplayerSocket.emit('join-room', { roomCode, playerName });
 	});
