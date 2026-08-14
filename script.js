@@ -735,11 +735,11 @@ const housePlots = [
 ];
 
 const houseCatalog = [
-	{ id: 'small', name: 'Kleines Haus', price: 1200, color: 0xc58b5a, houseType: 'cottage', description: 'Gemütlich, günstig und perfekt für den Start.' },
-	{ id: 'family', name: 'Familienhaus', price: 2500, color: 0x9db4c0, houseType: 'default', description: 'Mehr Platz für Alltag und Familie.' },
-	{ id: 'villa', name: 'Villa', price: 6500, color: 0xf0e2c6, houseType: 'villa', description: 'Groß, hell und deutlich luxuriöser.' },
-	{ id: 'luxury', name: 'Luxusvilla', price: 12000, color: 0xd9d9d9, houseType: 'modern', description: 'Das teuerste und auffälligste Haus.' },
-	{ id: 'mystery', name: 'Mysteriöses Haus', price: 1111, color: 0x2f3640, houseType: 'mystery', description: 'Unheimlich, verborgen und mit einem Keller.' }
+	{ id: 'small', name: 'Kleines Haus', price: 12000, color: 0xc58b5a, houseType: 'cottage', description: 'Gemütlich, günstig und perfekt für den Start.' },
+	{ id: 'family', name: 'Familienhaus', price: 25000, color: 0x9db4c0, houseType: 'default', description: 'Mehr Platz für Alltag und Familie.' },
+	{ id: 'villa', name: 'Villa', price: 65000, color: 0xf0e2c6, houseType: 'villa', description: 'Groß, hell und deutlich luxuriöser.' },
+	{ id: 'luxury', name: 'Luxusvilla', price: 120000, color: 0xd9d9d9, houseType: 'modern', description: 'Das teuerste und auffälligste Haus.' },
+	{ id: 'mystery', name: 'Mysteriöses Haus', price: 11110, color: 0x2f3640, houseType: 'mystery', description: 'Unheimlich, verborgen und mit einem Keller.' }
 ];
 
 let mysteryHouseState = null;
@@ -4952,9 +4952,9 @@ function getSelectedCarColor() {
 }
 
 function buySmallCar() {
-	if (money >= 500) {
+	if (money >= 5000) {
 		const carColor = getSelectedCarColor();
-		money -= 500;
+		money -= 5000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🚙 Kleiner Wagen gekauft! Er steht neben deinem Haus!', 3000);
@@ -5003,14 +5003,14 @@ function buySmallCar() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 500€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 5000€.', 2000);
 	}
 }
 
 function buyFamilyVan() {
-	if (money >= 800) {
+	if (money >= 8000) {
 		const carColor = getSelectedCarColor();
-		money -= 800;
+		money -= 8000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🚐 Familien-Van gekauft! Er steht neben deinem Haus!', 3000);
@@ -5045,14 +5045,14 @@ function buyFamilyVan() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 800€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 8000€.', 2000);
 	}
 }
 
 function buySportsCar() {
-	if (money >= 1200) {
+	if (money >= 12000) {
 		const carColor = getSelectedCarColor();
-		money -= 1200;
+		money -= 12000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🏎️ Sportwagen gekauft! Er steht neben deinem Haus!', 3000);
@@ -5087,14 +5087,14 @@ function buySportsCar() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 1200€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 12000€.', 2000);
 	}
 }
 
 function buyPickupTruck() {
-	if (money >= 1000) {
+	if (money >= 10000) {
 		const carColor = getSelectedCarColor();
-		money -= 1000;
+		money -= 10000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🚛 Pickup Truck gekauft! Er steht neben deinem Haus!', 3000);
@@ -5128,14 +5128,14 @@ function buyPickupTruck() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 1000€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 10000€.', 2000);
 	}
 }
 
 function buySUV() {
-	if (money >= 1500) {
+	if (money >= 15000) {
 		const carColor = getSelectedCarColor();
-		money -= 1500;
+		money -= 15000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🚙 SUV gekauft! Er steht neben deinem Haus!', 3000);
@@ -5169,14 +5169,14 @@ function buySUV() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 1500€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 15000€.', 2000);
 	}
 }
 
 function buyConvertible() {
-	if (money >= 1800) {
+	if (money >= 18000) {
 		const carColor = getSelectedCarColor();
-		money -= 1800;
+		money -= 18000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🏎️ Cabriolet gekauft! Er steht neben deinem Haus!', 3000);
@@ -5210,14 +5210,14 @@ function buyConvertible() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 1800€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 18000€.', 2000);
 	}
 }
 
 function buyLuxury() {
-	if (money >= 2500) {
+	if (money >= 25000) {
 		const carColor = getSelectedCarColor();
-		money -= 2500;
+		money -= 25000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🛡️ Luxuslimousine gekauft! Sie steht neben deinem Haus!', 3000);
@@ -5251,14 +5251,14 @@ function buyLuxury() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 2500€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 25000€.', 2000);
 	}
 }
 
 function buyBus() {
-	if (money >= 3000) {
+	if (money >= 30000) {
 		const carColor = getSelectedCarColor();
-		money -= 3000;
+		money -= 30000;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
 		showMessage('🚌 Bus gekauft! Er steht neben deinem Haus!', 3000);
@@ -5292,7 +5292,7 @@ function buyBus() {
 		
 		scene.add(newCar);
 	} else {
-		showMessage('Zu wenig Geld! Du brauchst 3000€.', 2000);
+		showMessage('Zu wenig Geld! Du brauchst 30000€.', 2000);
 	}
 }
 
@@ -5327,11 +5327,11 @@ function buyPerformanceCar(type, name, color, price) {
 }
 
 function buyRacingCar() {
-	buyPerformanceCar('supercar', 'Rennwagen GT', 0xE63946, 4500);
+	buyPerformanceCar('supercar', 'Rennwagen GT', 0xE63946, 45000);
 }
 
 function buyHypercar() {
-	buyPerformanceCar('hypercar', 'Hypercar X', 0x00B8D9, 7000);
+	buyPerformanceCar('hypercar', 'Hypercar X', 0x00B8D9, 70000);
 }
 
 function getHouseSpawnPosition() {
@@ -5983,7 +5983,7 @@ function setupCarDealer() {
 	// Kleiner Wagen
 	const smallCar = createCar('small', carDealerX - 6, carDealerZ - 3, 0xFF4444);
 	smallCar.userData.id = 'showroom_small';
-	smallCar.userData.price = 500;
+	smallCar.userData.price = 5000;
 	smallCar.userData.name = 'Kleiner Wagen';
 	smallCar.userData.type = 'small'; // Typ hinzufügen
 	smallCar.userData.isShowroom = true; // Markiert als Ausstellungsstück
@@ -5991,7 +5991,7 @@ function setupCarDealer() {
 	// Familien-Van
 	const familyVan = createCar('van', carDealerX + 6, carDealerZ - 3, 0x4444FF);
 	familyVan.userData.id = 'showroom_van';
-	familyVan.userData.price = 800;
+	familyVan.userData.price = 8000;
 	familyVan.userData.name = 'Familien-Van';
 	familyVan.userData.type = 'van'; // Typ hinzufügen
 	familyVan.userData.isShowroom = true;
@@ -5999,21 +5999,21 @@ function setupCarDealer() {
 	// Sportwagen
 	const sportsCar = createCar('sports', carDealerX - 6, carDealerZ + 3, 0xFFFF44);
 	sportsCar.userData.id = 'showroom_sports';
-	sportsCar.userData.price = 1200;
+	sportsCar.userData.price = 12000;
 	sportsCar.userData.name = 'Sportwagen';
 	sportsCar.userData.type = 'sports'; // Typ hinzufügen
 	sportsCar.userData.isShowroom = true;
 
 	const racingCar = createCar('supercar', carDealerX - 18, carDealerZ + 3, 0xE63946);
 	racingCar.userData.id = 'showroom_supercar';
-	racingCar.userData.price = 4500;
+	racingCar.userData.price = 45000;
 	racingCar.userData.name = 'Rennwagen GT';
 	racingCar.userData.type = 'supercar';
 	racingCar.userData.isShowroom = true;
 
 	const hypercar = createCar('hypercar', carDealerX + 18, carDealerZ + 3, 0x00B8D9);
 	hypercar.userData.id = 'showroom_hypercar';
-	hypercar.userData.price = 7000;
+	hypercar.userData.price = 70000;
 	hypercar.userData.name = 'Hypercar X';
 	hypercar.userData.type = 'hypercar';
 	hypercar.userData.isShowroom = true;
@@ -6021,7 +6021,7 @@ function setupCarDealer() {
 	// Pickup Truck
 	const pickupTruck = createCar('truck', carDealerX + 6, carDealerZ + 3, 0x44FF44);
 	pickupTruck.userData.id = 'showroom_truck';
-	pickupTruck.userData.price = 1000;
+	pickupTruck.userData.price = 10000;
 	pickupTruck.userData.name = 'Pickup Truck';
 	pickupTruck.userData.type = 'truck'; // Typ hinzufügen
 	pickupTruck.userData.isShowroom = true;
@@ -6029,7 +6029,7 @@ function setupCarDealer() {
 	// SUV
 	const suv = createCar('suv', carDealerX - 12, carDealerZ - 3, 0xFF8844);
 	suv.userData.id = 'showroom_suv';
-	suv.userData.price = 1500;
+	suv.userData.price = 15000;
 	suv.userData.name = 'SUV';
 	suv.userData.type = 'suv'; // Typ hinzufügen
 	suv.userData.isShowroom = true;
@@ -6037,7 +6037,7 @@ function setupCarDealer() {
 	// Cabriolet
 	const convertible = createCar('convertible', carDealerX + 12, carDealerZ - 3, 0xFF44FF);
 	convertible.userData.id = 'showroom_convertible';
-	convertible.userData.price = 1800;
+	convertible.userData.price = 18000;
 	convertible.userData.name = 'Cabriolet';
 	convertible.userData.type = 'convertible'; // Typ hinzufügen
 	convertible.userData.isShowroom = true;
@@ -6045,7 +6045,7 @@ function setupCarDealer() {
 	// Luxuslimousine
 	const luxury = createCar('luxury', carDealerX - 12, carDealerZ + 3, 0x444444);
 	luxury.userData.id = 'showroom_luxury';
-	luxury.userData.price = 2500;
+	luxury.userData.price = 25000;
 	luxury.userData.name = 'Luxuslimousine';
 	luxury.userData.type = 'luxury'; // Typ hinzufügen
 	luxury.userData.isShowroom = true;
@@ -6053,7 +6053,7 @@ function setupCarDealer() {
 	// Bus
 	const bus = createCar('bus', carDealerX + 12, carDealerZ + 3, 0xFFFF88);
 	bus.userData.id = 'showroom_bus';
-	bus.userData.price = 3000;
+	bus.userData.price = 30000;
 	bus.userData.name = 'Bus';
 	bus.userData.type = 'bus'; // Typ hinzufügen
 	bus.userData.isShowroom = true;
