@@ -4965,11 +4965,11 @@ function collectMysteryBox() {
 		showMessage('Gehe näher an die Box.', 1500);
 		return;
 	}
-	money += 2000;
+	money += 10000;
 	moneySpan.textContent = `Geld: ${money} €`;
 	mysteryBoxRewardCooldown = now + 250;
 	saveData();
-	showMessage('2000€ gefunden!', 2000);
+	showMessage('10000€ gefunden!', 2000);
 	if (!mysteryBasementPoliceTriggered && now - mysteryBasementEnteredAt > 15000) {
 		startMysteryPoliceSearch();
 	}
