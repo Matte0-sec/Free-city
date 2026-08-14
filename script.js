@@ -583,6 +583,10 @@ let playerHealth = parseInt(getGameData('playerHealth')) || 100;
 
 // Fahrzeug-System
 let ownedCars = JSON.parse(getGameData('ownedCars')) || [];
+const airfieldSpawnPositions = {
+	helicopter: { x: 500, z: 520, rotation: Math.PI / 2 },
+	airplane: { x: 540, z: 520, rotation: Math.PI / 2 }
+};
 let currentVehicle = null;
 let currentVehicleType = null; // Neuer Typ-Tracker
 let isInVehicle = false;
@@ -5448,11 +5452,6 @@ function getHouseSpawnPosition() {
 	
 	return bestPosition;
 }
-
-const airfieldSpawnPositions = {
-	helicopter: { x: 500, z: 520, rotation: Math.PI / 2 },
-	airplane: { x: 540, z: 520, rotation: Math.PI / 2 }
-};
 
 function createFlightVehicle(type, x, z, color) {
 	const vehicle = new THREE.Group();
