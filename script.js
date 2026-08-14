@@ -157,6 +157,8 @@ const buySUVBtn = document.getElementById('buySUV');
 const buyConvertibleBtn = document.getElementById('buyConvertible');
 const buyLuxuryBtn = document.getElementById('buyLuxury');
 const buyBusBtn = document.getElementById('buyBus');
+const buyHelicopterBtn = document.getElementById('buyHelicopter');
+const buyAirplaneBtn = document.getElementById('buyAirplane');
 
 // Bankraub-System
 const bankRobberyBtn = document.getElementById('bankRobberyBtn');
@@ -625,6 +627,10 @@ function getVehicleMaxSpeed(vehicleType) {
 			return 2.1; // Luxus: 2.1 (komfortabel schnell)
 		case 'bus':
 			return 1.2; // Bus: 1.2 (langsam)
+		case 'helicopter':
+			return 3.8;
+		case 'airplane':
+			return 5.8;
 		default:
 			return 2.2; // Standard
 	}
@@ -652,6 +658,9 @@ function getVehicleReverseSpeed(vehicleType) {
 			return -1.1; // Luxus rückwärts
 		case 'bus':
 			return -0.6; // Bus rückwärts sehr langsam
+		case 'helicopter':
+		case 'airplane':
+			return 0;
 		default:
 			return -1.2; // Standard rückwärts
 	}
@@ -5438,6 +5447,86 @@ function getHouseSpawnPosition() {
 	return bestPosition;
 }
 
+const airfieldSpawnPositions = {
+	helicopter: { x: 500, z: 520, rotation: Math.PI / 2 },
+	airplane: { x: 540, z: 520, rotation: Math.PI / 2 }
+};
+
+function createFlightVehicle(type, x, z, color) {
+	const vehicle = new THREE.Group();
+	const material = new THREE.MeshPhongMaterial({ color });
+	const darkMaterial = new THREE.MeshPhongMaterial({ color: 0x27323a });
+	if (type === 'helicopter') {
+		const cabin = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 10), material);
+		cabin.scale.set(1.35, 0.8, 0.9);
+		cabin.position.y = 3.2;
+		vehicle.add(cabin);
+		const tail = new THREE.Mesh(new THREE.BoxGeometry(8, 0.7, 0.7), material);
+		tail.position.set(-6, 3.2, 0);
+		vehicle.add(tail);
+		const rotor = new THREE.Mesh(new THREE.BoxGeometry(14, 0.12, 0.45), darkMaterial);
+		rotor.position.y = 6.5;
+		vehicle.add(rotor);
+		const skid = new THREE.Mesh(new THREE.BoxGeometry(5, 0.3, 4), darkMaterial);
+		skid.position.y = 0.45;
+		vehicle.add(skid);
+		vehicle.userData.rotor = rotor;
+	} else {
+		const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.3, 16, 16), material);
+		fuselage.rotation.z = Math.PI / 2;
+		fuselage.position.y = 3;
+		vehicle.add(fuselage);
+		const wing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.25, 24), material);
+		wing.position.y = 3;
+		vehicle.add(wing);
+		const tailWing = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 8), material);
+		tailWing.position.set(-6, 4.2, 0);
+		vehicle.add(tailWing);
+		const fin = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3, 0.25), material);
+		fin.position.set(-6, 5, 0);
+		vehicle.add(fin);
+		vehicle.rotation.y = -Math.PI / 2;
+	}
+	vehicle.position.set(x, 0, z);
+	return vehicle;
+}
+
+function createOwnedVehicle(vehicleData, position) {
+	const vehicle = vehicleData.type === 'helicopter' || vehicleData.type === 'airplane'
+		? createFlightVehicle(vehicleData.type, position.x, position.z, vehicleData.color)
+		: createCar(vehicleData.type, position.x, position.z, vehicleData.color);
+	vehicle.rotation.y += position.rotation || 0;
+	vehicle.userData.id = vehicleData.id;
+	vehicle.userData.name = vehicleData.name;
+	vehicle.userData.isOwned = true;
+	return vehicle;
+}
+
+function buyFlightVehicle(type, name, price, color) {
+	if (money < price) {
+		showMessage(`Zu wenig Geld! Du brauchst ${price}€.`, 2500);
+		return;
+	}
+	money -= price;
+	moneySpan.textContent = `Geld: ${money} €`;
+	const vehicleData = { id: Date.now() + Math.random(), type, name, color };
+	ownedCars.push(vehicleData);
+	saveData();
+	saveVehicleData();
+	const spawn = airfieldSpawnPositions[type];
+	const vehicle = createOwnedVehicle(vehicleData, spawn);
+	scene.add(vehicle);
+	showMessage(`${name} gekauft! Er steht am Flugplatz bei (${spawn.x}, ${spawn.z}).`, 4000);
+}
+
+function buyHelicopter() {
+	buyFlightVehicle('helicopter', 'Helikopter', 90000, 0x2d8f6b);
+}
+
+function buyAirplane() {
+	buyFlightVehicle('airplane', 'Flugzeug', 150000, 0x3a78b5);
+}
+
 // Fahrzeug-System Funktionen
 function enterVehicle(vehicle) {
 	if (!isInVehicle && ownedCars.some(car => car.id === vehicle.userData.id)) {
@@ -5497,6 +5586,35 @@ function exitVehicle() {
 
 function updateVehicleMovement() {
 	if (!isInVehicle || !currentVehicle) return;
+	if (currentVehicleType === 'helicopter' || currentVehicleType === 'airplane') {
+		const maxSpeed = currentVehicleType === 'airplane' ? 5.8 : 3.8;
+		if (keys['w'] || keys['arrowup']) vehicleSpeed = Math.min(maxSpeed, vehicleSpeed + 0.12);
+		else if (keys['s'] || keys['arrowdown']) vehicleSpeed = Math.max(0, vehicleSpeed - 0.16);
+		else vehicleSpeed *= 0.985;
+		if (keys['a'] || keys['arrowleft']) currentVehicle.rotation.y += 0.035;
+		if (keys['d'] || keys['arrowright']) currentVehicle.rotation.y -= 0.035;
+		if (keys[' '] || keys['space']) currentVehicle.position.y = Math.min(180, currentVehicle.position.y + 0.38);
+		if (keys['shift']) currentVehicle.position.y = Math.max(0, currentVehicle.position.y - 0.38);
+		if (currentVehicleType === 'airplane' && vehicleSpeed > 1.2 && currentVehicle.position.y < 4) {
+			currentVehicle.position.y += 0.12;
+		}
+		currentVehicle.position.x += Math.sin(currentVehicle.rotation.y) * vehicleSpeed;
+		currentVehicle.position.z += Math.cos(currentVehicle.rotation.y) * vehicleSpeed;
+		if (currentVehicle.userData.rotor) currentVehicle.userData.rotor.rotation.y += 0.55;
+		player.position.copy(currentVehicle.position);
+		player.position.y += 2;
+		const cameraYaw = currentVehicle.rotation.y + (camAngleY - Math.PI / 2);
+		const distance = 19;
+		camera.position.set(
+			currentVehicle.position.x - Math.sin(cameraYaw) * distance,
+			currentVehicle.position.y + 10,
+			currentVehicle.position.z - Math.cos(cameraYaw) * distance
+		);
+		cameraTarget.copy(currentVehicle.position);
+		cameraTarget.y += 3;
+		camera.lookAt(cameraTarget);
+		return;
+	}
 
 	// Fahrzeug-Physik Variablen
 	let targetSpeed = 0;
@@ -6143,12 +6261,11 @@ function loadOwnedCars() {
 		
 		// Verwende Index um Position zu bestimmen, wiederhole bei Bedarf
 		const positionIndex = index % positions.length;
-		const spawnPos = positions[positionIndex];
+		const spawnPos = carData.type === 'helicopter' || carData.type === 'airplane'
+			? airfieldSpawnPositions[carData.type]
+			: positions[positionIndex];
 		
-		const ownedCar = createCar(carData.type, spawnPos.x, spawnPos.z, carData.color);
-		ownedCar.userData.id = carData.id;
-		ownedCar.userData.name = carData.name;
-		ownedCar.userData.isOwned = true;
+		const ownedCar = createOwnedVehicle(carData, spawnPos);
 		
 		// Grüne Markierung für eigene Autos
 		const marker = new THREE.Mesh(
@@ -6223,6 +6340,8 @@ buySUVBtn.addEventListener('click', buySUV);
 buyConvertibleBtn.addEventListener('click', buyConvertible);
 buyLuxuryBtn.addEventListener('click', buyLuxury);
 buyBusBtn.addEventListener('click', buyBus);
+buyHelicopterBtn.addEventListener('click', buyHelicopter);
+buyAirplaneBtn.addEventListener('click', buyAirplane);
 closeCarDealerBtn.addEventListener('click', closeCarDealer);
 
 // Bankraub Event-Listener
