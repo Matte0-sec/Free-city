@@ -37,6 +37,16 @@
 		<span id="multiplayerRoomLabel"></span>
 		<span id="multiplayerPlayerLabel">Alleine im Raum</span>
 	</div>
+	<section id="gameChat" aria-label="Raumchat" style="display: none;">
+		<button id="chatToggleBtn" type="button" aria-label="Chat oeffnen" aria-expanded="false" title="Chat oeffnen">Chat</button>
+		<div id="chatPanel" hidden>
+			<div id="chatMessages" aria-live="polite"></div>
+			<form id="chatForm">
+				<input id="chatInput" type="text" maxlength="160" autocomplete="off" placeholder="Nachricht..." aria-label="Chatnachricht">
+				<button type="submit" aria-label="Nachricht senden" title="Nachricht senden">Senden</button>
+			</form>
+		</div>
+	</section>
 	<div id="mobileControls" aria-label="Mobile Spielsteuerung">
 		<div id="mobileJoystick" aria-label="Bewegen">
 			<div id="mobileJoystickKnob"></div>

@@ -55,6 +55,12 @@ const liveRoomsList = document.getElementById('liveRoomsList');
 const multiplayerStatus = document.getElementById('multiplayerStatus');
 const multiplayerRoomLabel = document.getElementById('multiplayerRoomLabel');
 const multiplayerPlayerLabel = document.getElementById('multiplayerPlayerLabel');
+const gameChat = document.getElementById('gameChat');
+const chatToggleBtn = document.getElementById('chatToggleBtn');
+const chatPanel = document.getElementById('chatPanel');
+const chatMessages = document.getElementById('chatMessages');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -3450,6 +3456,34 @@ function removeRemotePlayer() {
 	multiplayerPlayerLabel.textContent = 'Alleine im Raum';
 }
 
+function addChatMessage(message) {
+	const line = document.createElement('p');
+	line.className = 'chatMessage';
+	const author = document.createElement('span');
+	author.className = 'chatAuthor';
+	author.textContent = `${message.playerName}: `;
+	line.append(author, document.createTextNode(message.text));
+	chatMessages.appendChild(line);
+	chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+chatToggleBtn.addEventListener('click', () => {
+	const isOpen = chatPanel.hidden;
+	chatPanel.hidden = !isOpen;
+	chatToggleBtn.setAttribute('aria-expanded', String(isOpen));
+	chatToggleBtn.setAttribute('aria-label', isOpen ? 'Chat schliessen' : 'Chat oeffnen');
+	chatToggleBtn.title = isOpen ? 'Chat schliessen' : 'Chat oeffnen';
+	if (isOpen) chatInput.focus();
+});
+
+chatForm.addEventListener('submit', event => {
+	event.preventDefault();
+	const text = chatInput.value.trim();
+	if (!text || !multiplayerSocket?.connected) return;
+	multiplayerSocket.emit('chat-message', { text });
+	chatInput.value = '';
+});
+
 function renderLiveRooms(rooms) {
 	liveRoomsList.replaceChildren();
 	if (!rooms.length) {
@@ -3512,8 +3546,10 @@ function connectToMultiplayerRoom() {
 	multiplayerSocket.on('room-joined', data => {
 		multiplayerStatus.style.display = 'flex';
 		multiplayerRoomLabel.textContent = `Raum: ${data.roomCode}`;
+		gameChat.style.display = 'block';
 		data.players.forEach(showRemotePlayer);
 	});
+	multiplayerSocket.on('chat-message', addChatMessage);
 	multiplayerSocket.on('player-joined', data => showRemotePlayer(data.player));
 	multiplayerSocket.on('player-moved', data => {
 		if (data.id !== multiplayerSocket.id) showRemotePlayer(data);

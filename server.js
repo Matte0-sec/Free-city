@@ -73,6 +73,15 @@ io.on('connection', socket => {
 		socket.to(roomCode).emit('player-moved', player);
 	});
 
+	socket.on('chat-message', data => {
+		if (!roomCode || !rooms.has(roomCode)) return;
+		const text = sanitizeText(data?.text, '', 160);
+		if (!text) return;
+		const player = rooms.get(roomCode).find(entry => entry.id === socket.id);
+		if (!player) return;
+		io.to(roomCode).emit('chat-message', { playerName: player.name, text });
+	});
+
 	socket.on('disconnect', () => {
 		if (!roomCode || !rooms.has(roomCode)) return;
 		const room = rooms.get(roomCode);

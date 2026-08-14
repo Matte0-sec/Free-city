@@ -156,6 +156,81 @@ h1 {
 #multiplayerPlayerLabel {
 	color: #a9dfb0;
 }
+#gameChat {
+	position: fixed;
+	right: 18px;
+	bottom: 18px;
+	z-index: 1002;
+	width: min(280px, calc(100vw - 36px));
+	text-align: left;
+}
+#chatToggleBtn {
+	float: right;
+	padding: 8px 10px;
+	border: 1px solid #84a9c1;
+	border-radius: 5px;
+	background: rgba(28, 52, 66, 0.94);
+	color: #fff;
+	font: inherit;
+	cursor: pointer;
+}
+#chatPanel {
+	clear: both;
+	margin-bottom: 7px;
+	border: 1px solid rgba(190, 220, 240, 0.42);
+	border-radius: 6px;
+	background: rgba(15, 25, 34, 0.92);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+	overflow: hidden;
+}
+#chatMessages {
+	box-sizing: border-box;
+	height: 116px;
+	padding: 7px 9px;
+	overflow-y: auto;
+	color: #dcecf7;
+	font-size: 0.78rem;
+	line-height: 1.35;
+}
+.chatMessage {
+	margin: 0 0 4px;
+	word-break: break-word;
+}
+.chatAuthor {
+	color: #a6e7ae;
+	font-weight: bold;
+}
+#chatForm {
+	display: flex;
+	border-top: 1px solid rgba(190, 220, 240, 0.25);
+}
+#chatInput {
+	min-width: 0;
+	flex: 1;
+	padding: 8px;
+	border: 0;
+	background: #192934;
+	color: #fff;
+	font: inherit;
+}
+#chatForm button {
+	padding: 8px 10px;
+	border: 0;
+	background: #3c9a68;
+	color: #fff;
+	font: inherit;
+	cursor: pointer;
+}
+@media (max-width: 700px) {
+	.mobile-controls-enabled #gameChat {
+		right: max(18px, env(safe-area-inset-right));
+		bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
+		width: min(250px, calc(100vw - 36px));
+	}
+	.mobile-controls-enabled #chatMessages {
+		height: 86px;
+	}
+}
 #deviceMode {
 	display: flex;
 	align-items: center;
