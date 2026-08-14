@@ -61,6 +61,8 @@ const chatPanel = document.getElementById('chatPanel');
 const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const chatInput = document.getElementById('chatInput');
+const chatUnreadCount = document.getElementById('chatUnreadCount');
+let unreadChatMessages = 0;
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -3465,6 +3467,11 @@ function addChatMessage(message) {
 	line.append(author, document.createTextNode(message.text));
 	chatMessages.appendChild(line);
 	chatMessages.scrollTop = chatMessages.scrollHeight;
+	if (chatPanel.hidden) {
+		unreadChatMessages += 1;
+		chatUnreadCount.textContent = unreadChatMessages > 9 ? '9+' : String(unreadChatMessages);
+		chatUnreadCount.hidden = false;
+	}
 }
 
 chatToggleBtn.addEventListener('click', () => {
@@ -3473,7 +3480,11 @@ chatToggleBtn.addEventListener('click', () => {
 	chatToggleBtn.setAttribute('aria-expanded', String(isOpen));
 	chatToggleBtn.setAttribute('aria-label', isOpen ? 'Chat schliessen' : 'Chat oeffnen');
 	chatToggleBtn.title = isOpen ? 'Chat schliessen' : 'Chat oeffnen';
-	if (isOpen) chatInput.focus();
+	if (isOpen) {
+		unreadChatMessages = 0;
+		chatUnreadCount.hidden = true;
+		chatInput.focus();
+	}
 });
 
 chatForm.addEventListener('submit', event => {
