@@ -3301,7 +3301,14 @@ for (let i = 0; i < 8; i++) {
 
 // Steuerung
 let keys = {};
-document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+let playerVerticalVelocity = 0;
+document.addEventListener('keydown', e => {
+	keys[e.key.toLowerCase()] = true;
+	const groundY = isInMysteryBasement ? -18.5 : 0;
+	if ((e.key === ' ' || e.code === 'Space') && !e.repeat && !isInVehicle && player.position.y <= groundY + 0.01) {
+		playerVerticalVelocity = 0.42;
+	}
+});
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 const mobileJoystick = document.getElementById('mobileJoystick');
@@ -3718,6 +3725,16 @@ function animate() {
 	updateSpeedDisplay();
 	
 	if (!isInVehicle) {
+		const groundY = isInMysteryBasement ? -18.5 : 0;
+		if (player.position.y > groundY || playerVerticalVelocity > 0) {
+			player.position.y += playerVerticalVelocity;
+			playerVerticalVelocity -= 0.025;
+			if (player.position.y <= groundY) {
+				player.position.y = groundY;
+				playerVerticalVelocity = 0;
+			}
+		}
+
 		// Bewegung mit Kollisionsabfrage (relativ zur Kameraperspektive)
 		let speed = keys['shift'] ? 0.85 : 0.5;
 		let nextX = player.position.x;
