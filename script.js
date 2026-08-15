@@ -772,6 +772,12 @@ let mysteryBasementPoliceTriggered = false;
 let mysteryBoxRewardCooldown = 0;
 let mysteryPoliceUnits = [];
 let isInMysteryBasement = false;
+let playerHouseInterior = null;
+let playerHouseBed = null;
+let isInPlayerHouseInterior = false;
+let isLyingInPlayerHouse = false;
+let activePlayerHouse = null;
+const playerHouseInteriorPosition = { x: 700, y: 0, z: 700 };
 const jailPosition = { x: 180, y: 0, z: -255 };
 const jailFloorHeight = 9;
 let jailRoom = null;
@@ -3723,7 +3729,7 @@ function animate() {
 	// Geschwindigkeitsanzeige aktualisieren
 	updateSpeedDisplay();
 	
-	if (!isInVehicle) {
+	if (!isInVehicle && !isLyingInPlayerHouse) {
 		// Bewegung mit Kollisionsabfrage (relativ zur Kameraperspektive)
 		let speed = keys['shift'] ? 0.85 : 0.5;
 		let nextX = player.position.x;
@@ -4758,6 +4764,7 @@ function spawnOwnedHouses() {
 		const house = createBuilding(plot.x, plot.z, catalogEntry.color, catalogEntry.name, catalogEntry.houseType);
 		house.userData.isPlayerHouse = true;
 		house.userData.houseId = houseData.id;
+		house.userData.houseType = catalogEntry.houseType;
 		playerHouses.push(house);
 		if (catalogEntry.houseType === 'mystery') {
 			mysteryHouseState = { plot, houseData };
@@ -4958,6 +4965,99 @@ function exitMysteryBasement() {
 	isInMysteryBasement = false;
 	player.position.set(mysteryHouseState.plot.x, 0, mysteryHouseState.plot.z + 12);
 	showMessage('Du bist aus dem Keller heraus.', 2000);
+}
+
+function createPlayerHouseInterior() {
+	if (playerHouseInterior) return;
+	const room = new THREE.Group();
+	room.position.set(playerHouseInteriorPosition.x, playerHouseInteriorPosition.y, playerHouseInteriorPosition.z);
+	const floor = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 20), new THREE.MeshPhongMaterial({ color: 0x8a6b50 }));
+	room.add(floor);
+	const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xe4dccd });
+	const walls = [
+		{ size: [24, 8, 0.4], position: [0, 4, -10] },
+		{ size: [24, 8, 0.4], position: [0, 4, 10] },
+		{ size: [0.4, 8, 20], position: [-12, 4, 0] },
+		{ size: [0.4, 8, 20], position: [12, 4, 0] }
+	];
+	walls.forEach(wall => {
+		const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), wallMaterial);
+		mesh.position.set(...wall.position);
+		room.add(mesh);
+	});
+	const ceilingLight = new THREE.PointLight(0xffefd2, 1.1, 28);
+	ceilingLight.position.set(0, 6.5, 0);
+	room.add(ceilingLight);
+
+	const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(7, 0.8, 4), new THREE.MeshPhongMaterial({ color: 0x5d3a22 }));
+	bedFrame.position.set(-6, 1, -5);
+	room.add(bedFrame);
+	const mattress = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.65, 3.6), new THREE.MeshPhongMaterial({ color: 0x7aa6ce }));
+	mattress.position.set(-6, 1.7, -5);
+	mattress.userData.isPlayerHouseBed = true;
+	room.add(mattress);
+	playerHouseBed = mattress;
+	const pillow = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 3), new THREE.MeshPhongMaterial({ color: 0xf2f2ed }));
+	pillow.position.set(-8.2, 2.15, -5);
+	room.add(pillow);
+
+	const tvStand = new THREE.Mesh(new THREE.BoxGeometry(5, 1.6, 1.6), new THREE.MeshPhongMaterial({ color: 0x3a2a20 }));
+	tvStand.position.set(7, 0.9, -6.5);
+	room.add(tvStand);
+	const tv = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.8, 0.35), new THREE.MeshPhongMaterial({ color: 0x151b22, emissive: 0x152b3d }));
+	tv.position.set(7, 3, -6.5);
+	room.add(tv);
+
+	[-2.2, 2.2].forEach(x => {
+		const chair = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.8, 1.4), new THREE.MeshPhongMaterial({ color: 0x70482c }));
+		chair.position.set(x, 0.9, 3);
+		room.add(chair);
+	});
+	const table = new THREE.Mesh(new THREE.BoxGeometry(6, 0.45, 3.2), new THREE.MeshPhongMaterial({ color: 0x96613b }));
+	table.position.set(0, 2, 3);
+	room.add(table);
+
+	scene.add(room);
+	playerHouseInterior = room;
+}
+
+function enterPlayerHouse(house) {
+	createPlayerHouseInterior();
+	activePlayerHouse = house;
+	isInPlayerHouseInterior = true;
+	isLyingInPlayerHouse = false;
+	player.rotation.set(0, 0, 0);
+	player.position.set(playerHouseInteriorPosition.x, 0, playerHouseInteriorPosition.z + 7);
+	showMessage('Willkommen zuhause. Drücke E am Bett zum Hinlegen, R zum Verlassen.', 3500);
+}
+
+function togglePlayerHouseBed() {
+	if (!playerHouseBed || !playerHouseInterior) return false;
+	if (isLyingInPlayerHouse) {
+		isLyingInPlayerHouse = false;
+		player.rotation.set(0, 0, 0);
+		player.position.set(playerHouseInteriorPosition.x - 3, 0, playerHouseInteriorPosition.z - 3);
+		showMessage('Du stehst wieder auf.', 1500);
+		return true;
+	}
+	const bedPosition = new THREE.Vector3();
+	playerHouseBed.getWorldPosition(bedPosition);
+	if (player.position.distanceTo(bedPosition) > 5) return false;
+	isLyingInPlayerHouse = true;
+	player.position.set(bedPosition.x, bedPosition.y + 0.9, bedPosition.z);
+	player.rotation.set(0, 0, Math.PI / 2);
+	showMessage('Du liegst im Bett. Drücke E zum Aufstehen.', 2000);
+	return true;
+}
+
+function exitPlayerHouse() {
+	if (!activePlayerHouse) return;
+	isInPlayerHouseInterior = false;
+	isLyingInPlayerHouse = false;
+	player.rotation.set(0, 0, 0);
+	player.position.set(activePlayerHouse.position.x, 0, activePlayerHouse.position.z + 14);
+	activePlayerHouse = null;
+	showMessage('Du hast dein Haus verlassen.', 2000);
 }
 
 function collectMysteryBox() {
@@ -6405,6 +6505,12 @@ document.addEventListener('keydown', e => {
 			return;
 		}
 
+		if (isInPlayerHouseInterior) {
+			if (togglePlayerHouseBed()) return;
+			showMessage('Gehe näher ans Bett oder drücke R zum Verlassen.', 1500);
+			return;
+		}
+
 		if (mysteryHouseState && !isInMysteryBasement && !isInVehicle) {
 			const houseDistance = Math.sqrt(
 				Math.pow(player.position.x - mysteryHouseState.plot.x, 2) +
@@ -6412,6 +6518,16 @@ document.addEventListener('keydown', e => {
 			);
 			if (houseDistance < 14) {
 				enterMysteryBasement();
+				return;
+			}
+		}
+
+		if (!isInVehicle) {
+			const nearbyPlayerHouse = playerHouses.find(house =>
+				house.userData.houseType !== 'mystery' && player.position.distanceTo(house.position) < 16
+			);
+			if (nearbyPlayerHouse) {
+				enterPlayerHouse(nearbyPlayerHouse);
 				return;
 			}
 		}
@@ -6447,6 +6563,10 @@ document.addEventListener('keydown', e => {
 	}
 	}
 	if (e.key.toLowerCase() === 'r') {
+		if (isInPlayerHouseInterior) {
+			exitPlayerHouse();
+			return;
+		}
 		if (tryOpenPrisonReception()) return;
 		const bank = { x: 160, z: 140 };
 		const distX = Math.abs(player.position.x - bank.x);
