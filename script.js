@@ -5462,8 +5462,8 @@ function createFlightVehicle(type, x, z, color) {
 		cabin.scale.set(1.35, 0.8, 0.9);
 		cabin.position.y = 3.2;
 		vehicle.add(cabin);
-		const tail = new THREE.Mesh(new THREE.BoxGeometry(8, 0.7, 0.7), material);
-		tail.position.set(-6, 3.2, 0);
+		const tail = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 8), material);
+		tail.position.set(0, 3.2, -6);
 		vehicle.add(tail);
 		const rotor = new THREE.Mesh(new THREE.BoxGeometry(14, 0.12, 0.45), darkMaterial);
 		rotor.position.y = 6.5;
@@ -5474,19 +5474,18 @@ function createFlightVehicle(type, x, z, color) {
 		vehicle.userData.rotor = rotor;
 	} else {
 		const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.3, 16, 16), material);
-		fuselage.rotation.z = Math.PI / 2;
+		fuselage.rotation.x = Math.PI / 2;
 		fuselage.position.y = 3;
 		vehicle.add(fuselage);
-		const wing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.25, 24), material);
+		const wing = new THREE.Mesh(new THREE.BoxGeometry(24, 0.25, 6), material);
 		wing.position.y = 3;
 		vehicle.add(wing);
-		const tailWing = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 8), material);
-		tailWing.position.set(-6, 4.2, 0);
+		const tailWing = new THREE.Mesh(new THREE.BoxGeometry(8, 0.2, 3), material);
+		tailWing.position.set(0, 4.2, -6);
 		vehicle.add(tailWing);
-		const fin = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3, 0.25), material);
-		fin.position.set(-6, 5, 0);
+		const fin = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3, 2.5), material);
+		fin.position.set(0, 5, -6);
 		vehicle.add(fin);
-		vehicle.rotation.y = -Math.PI / 2;
 	}
 	vehicle.position.set(x, 0, z);
 	return vehicle;
