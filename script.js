@@ -2258,7 +2258,7 @@ function createBird(x, z, y = 10) {
 // Wetter-System
 let currentWeather = 'sunny';
 let weatherParticles = [];
-let weatherChangeTime = Date.now() + 30000; // Wetter ändert sich alle 30 Sekunden
+let weatherChangeTime = Date.now() + 180000; // Wetter ändert sich frühestens nach 3 Minuten
 
 // Initiale Himmel-Farbe setzen
 updateSkyColor();
@@ -2383,7 +2383,7 @@ function updateWeather() {
 			showMessage('☀️ Sonniges Wetter!', 3000);
 		}
 		
-		weatherChangeTime = now + 30000 + Math.random() * 30000; // 30-60 Sekunden
+		weatherChangeTime = now + 180000 + Math.random() * 120000; // 3-5 Minuten
 		
 		// Himmel-Farbe aktualisieren
 		updateSkyColor();
