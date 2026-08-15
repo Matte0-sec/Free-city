@@ -743,6 +743,7 @@ let bankMoney = parseInt(getGameData('bankMoney')) || 0;
 let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 5000€ Startgeld
 let hunger = Math.max(0, Math.min(100, Number(getGameData('hunger')) || 100));
 let foodInventory = JSON.parse(getGameData('foodInventory') || '{"apple":0,"bread":0,"drink":0}');
+foodInventory.prisonFreeCard = Number(foodInventory.prisonFreeCard) || 0;
 let lastHungerUpdate = Date.now();
 let lastStarvationDamage = 0;
 let unconsciousUntil = 0;
@@ -845,7 +846,10 @@ function completeQuest(quest) {
 	
 	// Belohnungen geben
 	money += questTypes[quest.type].rewards.money;
-	showMessage(`Quest abgeschlossen! +${questTypes[quest.type].rewards.money}€`, 3000);
+	foodInventory.prisonFreeCard = (foodInventory.prisonFreeCard || 0) + 1;
+	saveData();
+	renderInventory();
+	showMessage(`Quest abgeschlossen! +${questTypes[quest.type].rewards.money}€ und eine Gefängnis-Freikarte!`, 3500);
 	
 	updateQuestUI();
 }
@@ -4379,6 +4383,26 @@ function renderInventory() {
 		entry.appendChild(button);
 		inventoryItems.appendChild(entry);
 	});
+	const cardEntry = document.createElement('div');
+	cardEntry.className = 'inventoryItem';
+	cardEntry.textContent = `Gefängnis-Freikarte: ${foodInventory.prisonFreeCard}`;
+	const useCardButton = document.createElement('button');
+	useCardButton.type = 'button';
+	useCardButton.textContent = 'Einlösen';
+	useCardButton.disabled = foodInventory.prisonFreeCard <= 0 || jailTime <= 0;
+	useCardButton.addEventListener('click', () => {
+		foodInventory.prisonFreeCard -= 1;
+		jailTime = Math.max(0, jailTime - 5);
+		saveData();
+		renderInventory();
+		if (jailTime <= 0) {
+			releasePlayerFromJail();
+		} else {
+			showMessage(`Freikarte eingelöst. Noch ${jailTime} Minuten Gefängnis.`, 3000);
+		}
+	});
+	cardEntry.appendChild(useCardButton);
+	inventoryItems.appendChild(cardEntry);
 }
 
 function startUnconsciousness() {
@@ -4616,9 +4640,11 @@ function completeJob(jobType, successMessage) {
 	money += reward;
 	moneySpan.textContent = `Geld: ${money} €`;
 	jobEarnings[jobType] += jobSalarySteps[jobType];
+	foodInventory.prisonFreeCard = (foodInventory.prisonFreeCard || 0) + 1;
 	refreshJobButtonLabels();
 	saveData();
-	showMessage(`${successMessage} +${reward}€`, 2500);
+	renderInventory();
+	showMessage(`${successMessage} +${reward}€ und eine Gefängnis-Freikarte!`, 3000);
 	hideJobTargetMarker();
 	if (officeJobOverlay) {
 		officeJobOverlay.style.display = 'none';
@@ -7163,6 +7189,25 @@ function leaveJailInterior() {
 	player.position.set(jailPosition.x, 0, jailPosition.z + 15);
 }
 
+function releasePlayerFromJail() {
+	if (jailInterval) clearInterval(jailInterval);
+	jailInterval = null;
+	jailTime = 0;
+	leaveJailInterior();
+	showMessage('🚪 DU BIST FREI! Gefängnisstrafe beendet.', 4000);
+	showMessage('🕊️ Du kannst wieder spielen!', 3000);
+	wantedLevel = 0;
+	policeAlert = false;
+	securityHacked = false;
+	playerHealth = 100;
+	updateHealthDisplay();
+	saveData();
+	const overlay = document.getElementById('jailOverlay');
+	if (overlay) overlay.remove();
+	removePoliceCars();
+	removeFootPolice();
+}
+
 function startJailTime() {
 	if (jailInterval) return;
 	enterJailInterior();
@@ -7170,31 +7215,8 @@ function startJailTime() {
 	
 	jailInterval = setInterval(() => {
 		jailTime--;
-		
 		if (jailTime <= 0) {
-			clearInterval(jailInterval);
-			jailInterval = null;
-			leaveJailInterior();
-			showMessage('🚪 DU BIST FREI! Gefängnisstrafe beendet.', 4000);
-			showMessage('🕊️ Du kannst wieder spielen!', 3000);
-			wantedLevel = 0;
-			policeAlert = false;
-			securityHacked = false;
-			playerHealth = 100;
-			updateHealthDisplay();
-			saveData();
-			
-			// Gefängnis-Overlay entfernen
-			const overlay = document.getElementById('jailOverlay');
-			if (overlay) {
-				overlay.parentNode.removeChild(overlay);
-			}
-			
-			// Polizei-Fahrzeuge entfernen
-			removePoliceCars();
-			
-			// Fuß-Polizisten entfernen
-			removeFootPolice();
+			releasePlayerFromJail();
 		} else {
 			showMessage(`⏰ GEFÄNGNIS: Noch ${jailTime} Minuten!`, 2000);
 			console.log(`Gefängnis: ${jailTime} Minuten übrig`);
