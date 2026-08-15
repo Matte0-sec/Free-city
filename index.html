@@ -100,6 +100,15 @@
 		<div id="inventoryItems"></div>
 		<button id="closeInventoryBtn" type="button">Schließen</button>
 	</div>
+	<div id="parkAtmPanel" style="display: none;" aria-label="Park-Automat">
+		<h3>Park-Automat</h3>
+		<p>PIN eingeben, um die Auszahlung zu starten.</p>
+		<form id="parkAtmForm">
+			<input id="parkAtmPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4-stellige PIN" aria-label="PIN">
+			<button type="submit">Bestätigen</button>
+		</form>
+		<button id="closeParkAtmBtn" type="button">Schließen</button>
+	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
 		<h3>AUFZUG</h3>
@@ -280,6 +289,6 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js?v=20260815-houseinterior"></script>
+	<script src="script.js?v=20260815-park-atm"></script>
 </body>
 </html>

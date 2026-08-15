@@ -66,6 +66,10 @@ const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const chatInput = document.getElementById('chatInput');
 const chatUnreadCount = document.getElementById('chatUnreadCount');
+const parkAtmPanel = document.getElementById('parkAtmPanel');
+const parkAtmForm = document.getElementById('parkAtmForm');
+const parkAtmPin = document.getElementById('parkAtmPin');
+const closeParkAtmBtn = document.getElementById('closeParkAtmBtn');
 let unreadChatMessages = 0;
 
 function getGameData(key) {
@@ -791,6 +795,15 @@ let isInPlayerHouseInterior = false;
 let isLyingInPlayerHouse = false;
 let activePlayerHouse = null;
 const playerHouseInteriorPosition = { x: 700, y: 0, z: 700 };
+const parkPosition = { x: 0, z: 80 };
+const parkAtmInteriorPosition = { x: 760, y: 0, z: 700 };
+const parkAtmPinCode = '7319';
+const parkAtmPayoutInterval = 5 * 60 * 1000;
+let parkAtmRoom = null;
+let parkAtmMachine = null;
+let isInParkAtmRoom = false;
+let parkAtmActivated = getGameData('parkAtmActivated') === 'true';
+let parkAtmLastPayoutAt = Number(getGameData('parkAtmLastPayoutAt')) || Date.now();
 const jailPosition = { x: 180, y: 0, z: -255 };
 const jailFloorHeight = 9;
 let jailRoom = null;
@@ -940,7 +953,9 @@ function saveData() {
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
 	setGameData('foodInventory', JSON.stringify(foodInventory));
-	setGameData('jobEarnings', JSON.stringify(jobEarnings));
+	setGameData('parkAtmActivated', parkAtmActivated);
+	setGameData('parkAtmLastPayoutAt', parkAtmLastPayoutAt);
+	setGameData('jobEarnings', JSON.stringify(jobEarnings || {}));
 	setGameData('ownedHouses', JSON.stringify(ownedHouses));
 	houseBought = ownedHouses.length > 0;
 	setGameData('houseBought', houseBought);
@@ -3659,6 +3674,7 @@ function animate() {
 	requestAnimationFrame(animate);
 	createJailInterior();
 	updateSurvival();
+	updateParkAtmPayout();
 	
 	if (isPlayerInJail()) {
 		// Verbleibende Haftzeit anzeigen
@@ -4488,7 +4504,7 @@ const jobSalarySteps = {
 };
 
 const savedJobEarnings = JSON.parse(getGameData('jobEarnings') || '{}');
-let jobEarnings = {
+var jobEarnings = {
 	officeColors: savedJobEarnings.officeColors || savedJobEarnings.office || 30,
 	officeMath: savedJobEarnings.officeMath || 45,
 	officeFiling: savedJobEarnings.officeFiling || 55
@@ -5191,6 +5207,105 @@ function exitPlayerHouse() {
 	activePlayerHouse = null;
 	showMessage('Du hast dein Haus verlassen.', 2000);
 }
+
+function createParkAtmRoom() {
+	if (parkAtmRoom) return;
+	const room = new THREE.Group();
+	room.position.set(parkAtmInteriorPosition.x, parkAtmInteriorPosition.y, parkAtmInteriorPosition.z);
+	const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 16), new THREE.MeshPhongMaterial({ color: 0x28333a }));
+	room.add(floor);
+	const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x40515b });
+	[
+		{ size: [20, 8, 0.4], position: [0, 4, -8] },
+		{ size: [20, 8, 0.4], position: [0, 4, 8] },
+		{ size: [0.4, 8, 16], position: [-10, 4, 0] },
+		{ size: [0.4, 8, 16], position: [10, 4, 0] }
+	].forEach(wall => {
+		const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), wallMaterial);
+		mesh.position.set(...wall.position);
+		room.add(mesh);
+	});
+	const machine = new THREE.Group();
+	const body = new THREE.Mesh(new THREE.BoxGeometry(4.5, 5.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x263a49, emissive: 0x071018 }));
+	body.position.y = 2.75;
+	machine.add(body);
+	const screen = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 0.15), new THREE.MeshPhongMaterial({ color: 0x55e7a6, emissive: 0x1b7d58 }));
+	screen.position.set(0, 3.8, 0.82);
+	machine.add(screen);
+	machine.position.set(0, 0, -5.7);
+	room.add(machine);
+	const light = new THREE.PointLight(0xa4dcff, 1.1, 22);
+	light.position.set(0, 6.5, 0);
+	room.add(light);
+	scene.add(room);
+	parkAtmRoom = room;
+	parkAtmMachine = machine;
+}
+
+function enterParkAtmRoom() {
+	if (isInVehicle) return;
+	createParkAtmRoom();
+	isInParkAtmRoom = true;
+	player.rotation.set(0, 0, 0);
+	player.position.set(parkAtmInteriorPosition.x, 0, parkAtmInteriorPosition.z + 5);
+	showMessage('Du bist im Automatenraum. Drücke E am Automaten, R zum Verlassen.', 3500);
+}
+
+function exitParkAtmRoom() {
+	isInParkAtmRoom = false;
+	parkAtmPanel.style.display = 'none';
+	player.position.set(parkPosition.x, 0, parkPosition.z + 18);
+	showMessage('Du hast den Automatenraum verlassen.', 2000);
+}
+
+function tryOpenParkAtm() {
+	if (!isInParkAtmRoom || !parkAtmMachine) return false;
+	const machinePosition = new THREE.Vector3();
+	parkAtmMachine.getWorldPosition(machinePosition);
+	if (player.position.distanceTo(machinePosition) > 5) {
+		showMessage('Gehe näher an den Automaten.', 1500);
+		return true;
+	}
+	if (parkAtmActivated) {
+		showMessage('Der Automat zahlt alle 5 Minuten 100000€ aus.', 2500);
+		return true;
+	}
+	parkAtmPin.value = '';
+	parkAtmPanel.style.display = 'block';
+	parkAtmPin.focus();
+	return true;
+}
+
+function updateParkAtmPayout() {
+	if (!parkAtmActivated) return;
+	const now = Date.now();
+	const payouts = Math.floor((now - parkAtmLastPayoutAt) / parkAtmPayoutInterval);
+	if (payouts <= 0) return;
+	const reward = payouts * 100000;
+	money += reward;
+	moneySpan.textContent = `Geld: ${money} €`;
+	parkAtmLastPayoutAt += payouts * parkAtmPayoutInterval;
+	saveData();
+	showMessage(`Park-Automat: +${reward}€ ausgezahlt!`, 3500);
+}
+
+parkAtmForm.addEventListener('submit', event => {
+	event.preventDefault();
+	if (parkAtmPin.value !== parkAtmPinCode) {
+		showMessage('PIN ist falsch.', 2000);
+		parkAtmPin.select();
+		return;
+	}
+	parkAtmActivated = true;
+	parkAtmLastPayoutAt = Date.now();
+	saveData();
+	parkAtmPanel.style.display = 'none';
+	showMessage('Automat aktiviert. Erste Auszahlung in 5 Minuten.', 3000);
+});
+
+closeParkAtmBtn.addEventListener('click', () => {
+	parkAtmPanel.style.display = 'none';
+});
 
 function collectMysteryBox() {
 	const now = Date.now();
@@ -6613,6 +6728,7 @@ testFootPoliceBtn.addEventListener('click', () => runBankRobberyAction(testFootP
 
 document.addEventListener('keydown', e => {
 	if (e.key.toLowerCase() === 'e') {
+		if (isInParkAtmRoom && tryOpenParkAtm()) return;
 		if (isInMysteryBasement) {
 			if (mysteryBasementBox && mysteryBasementRoom) {
 				const boxX = mysteryBasementRoom.position.x + mysteryBasementBox.position.x;
@@ -6702,6 +6818,10 @@ document.addEventListener('keydown', e => {
 	}
 	}
 	if (e.key.toLowerCase() === 'r') {
+		if (isInParkAtmRoom) {
+			exitParkAtmRoom();
+			return;
+		}
 		if (isInPlayerHouseInterior) {
 			exitPlayerHouse();
 			return;
@@ -6712,6 +6832,10 @@ document.addEventListener('keydown', e => {
 		const distZ = Math.abs(player.position.z - (bank.z + 10.3));
 		if (distX < 15 && distZ < 12) {
 			openBankRobberyPanel();
+			return;
+		}
+		if (!isInVehicle && Math.hypot(player.position.x - parkPosition.x, player.position.z - parkPosition.z) < 24) {
+			enterParkAtmRoom();
 			return;
 		}
 		// Dialog mit NPC starten, wenn nahe genug

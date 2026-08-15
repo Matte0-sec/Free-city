@@ -601,6 +601,25 @@ h1 {
 #inventoryPanel h3 { margin: 0 0 10px; }
 .inventoryItem { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 7px 0; }
 .inventoryItem button, #closeInventoryBtn { padding: 6px 9px; border: 0; border-radius: 4px; background: #3c9a68; color: #fff; cursor: pointer; }
+#parkAtmPanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 1200;
+	width: min(320px, calc(100vw - 36px));
+	padding: 18px;
+	border: 1px solid #d0aa42;
+	border-radius: 7px;
+	background: rgba(18, 24, 30, 0.97);
+	color: #fff;
+	text-align: center;
+}
+#parkAtmPanel h3 { margin: 0 0 8px; }
+#parkAtmPanel p { margin: 0 0 12px; }
+#parkAtmForm { display: flex; gap: 8px; margin-bottom: 10px; }
+#parkAtmPin { min-width: 0; flex: 1; padding: 8px; border: 1px solid #8295a1; border-radius: 4px; }
+#parkAtmPanel button { padding: 8px 10px; border: 0; border-radius: 4px; background: #bd9131; color: #fff; cursor: pointer; }
 #speedDisplay {
 	font-size: 1.2em;
 	font-weight: bold;
