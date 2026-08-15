@@ -13,6 +13,10 @@ const buyBreadBtn = document.getElementById('buyBread');
 const buyDrinkBtn = document.getElementById('buyDrink');
 const buyHouseBtn = document.getElementById('buyHouse');
 const closeShopBtn = document.getElementById('closeShop');
+const inventoryBtn = document.getElementById('inventoryBtn');
+const inventoryPanel = document.getElementById('inventoryPanel');
+const inventoryItems = document.getElementById('inventoryItems');
+const closeInventoryBtn = document.getElementById('closeInventoryBtn');
 const messageBox = document.getElementById('messageBox');
 const jobPanel = document.getElementById('jobPanel');
 const officeJobBtn = document.getElementById('officeJobBtn');
@@ -82,6 +86,8 @@ const wantedLevelSpan = document.getElementById('wantedLevel');
 const policeChaseTimerSpan = document.getElementById('policeChaseTimer');
 const healthLabel = document.getElementById('healthLabel');
 const healthFill = document.getElementById('healthFill');
+const hungerLabel = document.getElementById('hungerLabel');
+const hungerFill = document.getElementById('hungerFill');
 let gameTime = 720; // Start bei 12:00 (12 * 60 Minuten)
 let timeSpeed = 1; // Minuten pro Sekunde
 
@@ -735,6 +741,12 @@ const availableQuests = [
 let money = parseInt(getGameData('money')) || 0;
 let bankMoney = parseInt(getGameData('bankMoney')) || 0;
 let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 5000€ Startgeld
+let hunger = Math.max(0, Math.min(100, Number(getGameData('hunger')) || 100));
+let foodInventory = JSON.parse(getGameData('foodInventory') || '{"apple":0,"bread":0,"drink":0}');
+let lastHungerUpdate = Date.now();
+let lastStarvationDamage = 0;
+let unconsciousUntil = 0;
+const hospitalPosition = { x: -200, z: -140 };
 
 // Sicherstellen, dass NPC-Bank genug Geld hat
 if (npcBankMoney < 1000) {
@@ -906,6 +918,8 @@ scene.background = new THREE.Color(0x87CEEB); // Schöner blauer Himmel
 moneySpan.textContent = `Geld: ${money} €`;
 bankMoneySpan.textContent = `Bank: ${bankMoney} €`;
 updateHealthDisplay();
+updateHungerDisplay();
+renderInventory();
 refreshHouseButtonLabel();
 
 if (houseBought) {
@@ -920,6 +934,8 @@ function saveData() {
 	setGameData('bankMoney', bankMoney);
 	setGameData('npcBankMoney', npcBankMoney);
 	setGameData('playerHealth', playerHealth);
+	setGameData('hunger', hunger);
+	setGameData('foodInventory', JSON.stringify(foodInventory));
 	setGameData('jobEarnings', JSON.stringify(jobEarnings));
 	setGameData('ownedHouses', JSON.stringify(ownedHouses));
 	houseBought = ownedHouses.length > 0;
@@ -3638,6 +3654,7 @@ document.addEventListener('contextmenu', e => {
 function animate() {
 	requestAnimationFrame(animate);
 	createJailInterior();
+	updateSurvival();
 	
 	if (isPlayerInJail()) {
 		// Verbleibende Haftzeit anzeigen
@@ -3729,7 +3746,7 @@ function animate() {
 	// Geschwindigkeitsanzeige aktualisieren
 	updateSpeedDisplay();
 	
-	if (!isInVehicle && !isLyingInPlayerHouse) {
+	if (!isInVehicle && !isLyingInPlayerHouse && !unconsciousUntil) {
 		// Bewegung mit Kollisionsabfrage (relativ zur Kameraperspektive)
 		let speed = keys['shift'] ? 0.85 : 0.5;
 		let nextX = player.position.x;
@@ -4325,11 +4342,94 @@ function updateHealthDisplay() {
 	}
 }
 
+function updateHungerDisplay() {
+	if (!hungerLabel || !hungerFill) return;
+	hunger = Math.max(0, Math.min(100, hunger));
+	hungerLabel.textContent = `Hunger: ${Math.round(hunger)}%`;
+	hungerFill.style.width = `${hunger}%`;
+	hungerFill.style.background = hunger <= 20 ? '#d7483f' : hunger <= 50 ? '#f0b23d' : '#4dff88';
+}
+
+function renderInventory() {
+	if (!inventoryItems) return;
+	inventoryItems.replaceChildren();
+	const foods = [
+		{ key: 'apple', label: 'Apfel', restore: 18 },
+		{ key: 'bread', label: 'Brot', restore: 35 },
+		{ key: 'drink', label: 'Getraenk', restore: 12 }
+	];
+	foods.forEach(food => {
+		const entry = document.createElement('div');
+		entry.className = 'inventoryItem';
+		entry.textContent = `${food.label}: ${foodInventory[food.key] || 0}`;
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.textContent = 'Essen';
+		button.disabled = !(foodInventory[food.key] > 0);
+		button.addEventListener('click', () => {
+			foodInventory[food.key] -= 1;
+			hunger = Math.min(100, hunger + food.restore);
+			playerHealth = Math.min(100, playerHealth + 4);
+			updateHungerDisplay();
+			updateHealthDisplay();
+			saveData();
+			renderInventory();
+			showMessage(`${food.label} gegessen. Hunger +${food.restore}%`, 2000);
+		});
+		entry.appendChild(button);
+		inventoryItems.appendChild(entry);
+	});
+}
+
+function startUnconsciousness() {
+	if (unconsciousUntil) return;
+	unconsciousUntil = Date.now() + 30000;
+	const overlay = document.createElement('div');
+	overlay.id = 'unconsciousOverlay';
+	overlay.style.cssText = 'position:fixed;inset:0;z-index:15000;display:grid;place-items:center;background:rgba(5,8,12,.88);color:#fff;font-size:1.5rem;font-weight:bold;';
+	overlay.textContent = 'Bewusstlos. Krankenhaus-Respawn in 30 Sekunden.';
+	document.body.appendChild(overlay);
+}
+
+function updateSurvival() {
+	const now = Date.now();
+	if (unconsciousUntil) {
+		const remaining = Math.max(0, Math.ceil((unconsciousUntil - now) / 1000));
+		const overlay = document.getElementById('unconsciousOverlay');
+		if (overlay) overlay.textContent = `Bewusstlos. Krankenhaus-Respawn in ${remaining} Sekunden.`;
+		if (now >= unconsciousUntil) {
+			unconsciousUntil = 0;
+			playerHealth = 100;
+			hunger = 55;
+			player.position.set(hospitalPosition.x, 0, hospitalPosition.z + 14);
+			const overlay = document.getElementById('unconsciousOverlay');
+			if (overlay) overlay.remove();
+			updateHealthDisplay();
+			updateHungerDisplay();
+			saveData();
+			showMessage('Du bist im Krankenhaus wieder zu dir gekommen.', 3000);
+		}
+		return;
+	}
+	if (now - lastHungerUpdate >= 1000) {
+		hunger = Math.max(0, hunger - 0.08);
+		lastHungerUpdate = now;
+		updateHungerDisplay();
+		if (Math.floor(now / 10000) !== Math.floor((now - 1000) / 10000)) saveData();
+	}
+	if (hunger <= 0 && now - lastStarvationDamage >= 5000) {
+		lastStarvationDamage = now;
+		damagePlayer(5, 'Hunger');
+	}
+	if (playerHealth <= 0) startUnconsciousness();
+}
+
 function damagePlayer(amount, reason = 'Schaden') {
 	playerHealth = Math.max(0, playerHealth - amount);
 	updateHealthDisplay();
 	saveData();
 	showMessage(`❤️ -${amount}% Leben${reason ? ` durch ${reason}` : ''}`, 2500);
+	if (playerHealth <= 0) startUnconsciousness();
 }
 
 function setTimeSpeed(speed) {
@@ -4685,9 +4785,11 @@ function tryBuy() {
 function buyApple() {
 	if (money >= 10) {
 		money -= 10;
+		foodInventory.apple = (foodInventory.apple || 0) + 1;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
-		showMessage('Apfel gekauft! Lecker!', 2000);
+		renderInventory();
+		showMessage('Apfel ins Inventar gelegt.', 2000);
 		
 		// Quest-Progress aktualisieren
 		activeQuests.forEach(quest => {
@@ -4703,9 +4805,11 @@ function buyApple() {
 function buyBread() {
 	if (money >= 20) {
 		money -= 20;
+		foodInventory.bread = (foodInventory.bread || 0) + 1;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
-		showMessage('Brot gekauft! Knusprig!', 2000);
+		renderInventory();
+		showMessage('Brot ins Inventar gelegt.', 2000);
 		
 		// Quest-Progress aktualisieren
 		activeQuests.forEach(quest => {
@@ -4721,11 +4825,13 @@ function buyBread() {
 function buyDrink() {
 	if (money >= 15) {
 		money -= 15;
+		foodInventory.drink = (foodInventory.drink || 0) + 1;
 		moneySpan.textContent = `Geld: ${money} €`;
 		saveData();
-		alert('Getränk gekauft! Erfrischend!');
+		renderInventory();
+		showMessage('Getraenk ins Inventar gelegt.', 2000);
 	} else {
-		alert('Zu wenig Geld!');
+		showMessage('Zu wenig Geld!', 2000);
 	}
 }
 
@@ -6403,6 +6509,13 @@ buyAppleBtn.addEventListener('click', buyApple);
 buyBreadBtn.addEventListener('click', buyBread);
 buyDrinkBtn.addEventListener('click', buyDrink);
 buyHouseBtn.addEventListener('click', buyHouse);
+inventoryBtn.addEventListener('click', () => {
+	renderInventory();
+	inventoryPanel.style.display = inventoryPanel.style.display === 'block' ? 'none' : 'block';
+});
+closeInventoryBtn.addEventListener('click', () => {
+	inventoryPanel.style.display = 'none';
+});
 closeShopBtn.addEventListener('click', closeShop);
 officeJobBtn.addEventListener('click', startOfficeJob);
 officeMathJobBtn.addEventListener('click', () => startOfficeJob('math'));

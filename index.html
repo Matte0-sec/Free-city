@@ -84,7 +84,21 @@
 		<button id="bankBtn">Bank</button>
 		<button id="bankRobberyBtn">🏦 Bankraub</button>
 		<button id="questBtn">Quests</button>
+		<button id="inventoryBtn">Inventar</button>
 		<button id="fullscreenBtn">Vollbild</button>
+	</div>
+	<div id="inventoryPanel" style="display: none;" aria-label="Essensinventar">
+		<h3>Inventar</h3>
+		<div id="healthWidget">
+			<div id="healthLabel">Leben: 100%</div>
+			<div id="healthBar"><div id="healthFill"></div></div>
+		</div>
+		<div id="hungerWidget">
+			<div id="hungerLabel">Hunger: 100%</div>
+			<div id="hungerBar"><div id="hungerFill"></div></div>
+		</div>
+		<div id="inventoryItems"></div>
+		<button id="closeInventoryBtn" type="button">Schließen</button>
 	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
