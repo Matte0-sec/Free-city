@@ -238,8 +238,11 @@ h1 {
 @media (max-width: 700px) {
 	.mobile-controls-enabled #gameChat {
 		right: max(18px, env(safe-area-inset-right));
-		bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
+		bottom: max(176px, calc(env(safe-area-inset-bottom) + 168px));
 		width: min(250px, calc(100vw - 36px));
+	}
+	.mobile-controls-enabled #gameChat:has(#chatPanel[hidden]) {
+		width: auto;
 	}
 	.mobile-controls-enabled #chatMessages {
 		height: 86px;
