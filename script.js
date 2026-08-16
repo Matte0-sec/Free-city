@@ -804,6 +804,7 @@ let parkAtmMachine = null;
 let isInParkAtmRoom = false;
 let parkAtmActivated = getGameData('parkAtmActivated') === 'true';
 let parkAtmLastPayoutAt = Number(getGameData('parkAtmLastPayoutAt')) || Date.now();
+let isGameSessionActive = false;
 const jailPosition = { x: 180, y: 0, z: -255 };
 const jailFloorHeight = 9;
 let jailRoom = null;
@@ -3451,6 +3452,9 @@ function setupStartScreen() {
 		mobileControlsEnabled = phoneMode;
 		document.body.classList.toggle('mobile-controls-enabled', phoneMode);
 		if (phoneMode) initializeMobileInputs();
+		isGameSessionActive = true;
+		parkAtmLastPayoutAt = Date.now();
+		saveData();
 		startOverlay.style.display = 'none';
 		connectToMultiplayerRoom();
 	});
@@ -5224,7 +5228,7 @@ function tryOpenParkAtm() {
 		return true;
 	}
 	if (parkAtmActivated) {
-		showMessage('Der Automat zahlt alle 5 Minuten 100000€ aus.', 2500);
+		showMessage('Der Automat zahlt alle 5 Minuten 50000€ aus.', 2500);
 		return true;
 	}
 	parkAtmPin.value = '';
@@ -5234,11 +5238,11 @@ function tryOpenParkAtm() {
 }
 
 function updateParkAtmPayout() {
-	if (!parkAtmActivated) return;
+	if (!isGameSessionActive || !parkAtmActivated) return;
 	const now = Date.now();
 	const payouts = Math.floor((now - parkAtmLastPayoutAt) / parkAtmPayoutInterval);
 	if (payouts <= 0) return;
-	const reward = payouts * 100000;
+	const reward = payouts * 50000;
 	money += reward;
 	moneySpan.textContent = `Geld: ${money} €`;
 	parkAtmLastPayoutAt += payouts * parkAtmPayoutInterval;
