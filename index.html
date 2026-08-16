@@ -4,7 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 	<title>Free City 3D</title>
-	<link rel="stylesheet" href="style.css?v=20260814">
+	<link rel="stylesheet" href="style.css?v=20260816-fullmap">
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
 	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
@@ -54,6 +54,7 @@
 		<div id="mobileActionButtons">
 			<button id="mobileInteractBtn" aria-label="Interagieren">E</button>
 			<button id="mobileReceptionBtn" aria-label="Empfang oder Bank">R</button>
+			<button id="mobilePhoneBtn" aria-label="Handy">H</button>
 			<button id="mobilePunchBtn" aria-label="Schlagen">Schlag</button>
 		</div>
 	</div>
@@ -131,6 +132,27 @@
 		<div id="burglaryMeter"><div id="burglaryTarget"></div><div id="burglaryMarker"></div></div>
 		<p id="burglaryStatus">Bereit</p>
 		<button id="cancelBurglaryBtn" type="button">Abbrechen</button>
+	</div>
+	<div id="phonePanel" style="display: none;" aria-label="Handy">
+		<div class="phoneHeader">
+			<h3>Handy</h3>
+			<button id="closePhoneBtn" type="button" aria-label="Handy schließen">X</button>
+		</div>
+		<div id="phoneApps">
+			<button id="phoneMapBtn" type="button">Karte</button>
+			<button id="phoneInventoryBtn" type="button">Inventar</button>
+			<button id="phoneQuestsBtn" type="button">Quests</button>
+			<button id="phoneEmergencyBtn" type="button">Notruf</button>
+		</div>
+		<p id="phoneStatus">Karte, Inventar und Quests immer dabei.</p>
+	</div>
+	<div id="fullMapPanel" style="display: none;" aria-label="Stadtkarte">
+		<div class="fullMapHeader">
+			<h3>Stadtkarte</h3>
+			<button id="closeFullMapBtn" type="button" aria-label="Karte schließen">X</button>
+		</div>
+		<div id="fullMapCanvas" aria-label="Stadt von oben"></div>
+		<p>Du bist der rote Marker.</p>
 	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
@@ -312,6 +334,6 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js?v=20260816-burglary"></script>
+	<script src="script.js?v=20260816-fullmap"></script>
 </body>
 </html>

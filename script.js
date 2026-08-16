@@ -82,6 +82,16 @@ const burglaryTarget = document.getElementById('burglaryTarget');
 const burglaryMarker = document.getElementById('burglaryMarker');
 const burglaryStatus = document.getElementById('burglaryStatus');
 const cancelBurglaryBtn = document.getElementById('cancelBurglaryBtn');
+const phonePanel = document.getElementById('phonePanel');
+const closePhoneBtn = document.getElementById('closePhoneBtn');
+const phoneMapBtn = document.getElementById('phoneMapBtn');
+const phoneInventoryBtn = document.getElementById('phoneInventoryBtn');
+const phoneQuestsBtn = document.getElementById('phoneQuestsBtn');
+const phoneEmergencyBtn = document.getElementById('phoneEmergencyBtn');
+const phoneStatus = document.getElementById('phoneStatus');
+const fullMapPanel = document.getElementById('fullMapPanel');
+const closeFullMapBtn = document.getElementById('closeFullMapBtn');
+const fullMapCanvas = document.getElementById('fullMapCanvas');
 let unreadChatMessages = 0;
 
 function getGameData(key) {
@@ -1044,6 +1054,15 @@ minimapContainer.appendChild(minimapRenderer.domElement);
 const minimapCamera = new THREE.OrthographicCamera(-600, 600, 600, -600, 0.1, 1000);
 minimapCamera.position.set(0, 200, 0);
 minimapCamera.lookAt(0, 0, 0);
+
+const fullMapRenderer = new THREE.WebGLRenderer({ antialias: true });
+fullMapRenderer.setSize(900, 900);
+fullMapRenderer.setClearColor(0x0d2017, 1);
+fullMapCanvas.appendChild(fullMapRenderer.domElement);
+
+const fullMapCamera = new THREE.OrthographicCamera(-600, 600, 600, -600, 0.1, 1000);
+fullMapCamera.position.set(0, 260, 0);
+fullMapCamera.lookAt(0, 0, 0);
 
 // Spieler-Marker für Minimap
 const playerMarker = new THREE.Group();
@@ -3399,6 +3418,7 @@ const mobileJoystick = document.getElementById('mobileJoystick');
 const mobileJoystickKnob = document.getElementById('mobileJoystickKnob');
 const mobileInteractBtn = document.getElementById('mobileInteractBtn');
 const mobileReceptionBtn = document.getElementById('mobileReceptionBtn');
+const mobilePhoneBtn = document.getElementById('mobilePhoneBtn');
 const mobilePunchBtn = document.getElementById('mobilePunchBtn');
 let mobileJoystickPointerId = null;
 let mobileCameraPointer = null;
@@ -3470,6 +3490,7 @@ function initializeMobileInputs() {
 	container.addEventListener('pointercancel', () => { mobileCameraPointer = null; });
 	mobileInteractBtn.addEventListener('click', () => triggerMobileKey('e'));
 	mobileReceptionBtn.addEventListener('click', () => triggerMobileKey('r'));
+	mobilePhoneBtn.addEventListener('click', togglePhone);
 	mobilePunchBtn.addEventListener('pointerdown', event => {
 		if (!mobileControlsEnabled) return;
 		event.preventDefault();
@@ -4255,6 +4276,9 @@ function animate() {
 
 	// Minimap rendern
 	minimapRenderer.render(scene, minimapCamera);
+	if (fullMapPanel.style.display === 'flex') {
+		fullMapRenderer.render(scene, fullMapCamera);
+	}
 
 	// Marker wieder unsichtbar machen für Hauptkamera
 	playerMarker.visible = false;
@@ -4475,6 +4499,78 @@ function damagePlayer(amount, reason = 'Schaden') {
 	showMessage(`❤️ -${amount}% Leben${reason ? ` durch ${reason}` : ''}`, 2500);
 	if (playerHealth <= 0) startUnconsciousness();
 }
+
+let emergencyCallCooldownUntil = 0;
+
+function setPhoneStatus(message) {
+	phoneStatus.textContent = message;
+}
+
+function openPhone() {
+	if (unconsciousUntil) {
+		showMessage('Du bist bewusstlos und wirst bereits versorgt.', 2500);
+		return;
+	}
+	phonePanel.style.display = 'block';
+	setPhoneStatus('Karte, Inventar und Quests immer dabei.');
+}
+
+function closePhone() {
+	phonePanel.style.display = 'none';
+}
+
+function togglePhone() {
+	if (phonePanel.style.display === 'block') {
+		closePhone();
+	} else {
+		openPhone();
+	}
+}
+
+function requestEmergencyHelp() {
+	if (unconsciousUntil) {
+		setPhoneStatus('Du wirst bereits ins Krankenhaus gebracht.');
+		return;
+	}
+	if (playerHealth >= 100) {
+		setPhoneStatus('Du brauchst gerade keine medizinische Hilfe.');
+		return;
+	}
+	const now = Date.now();
+	if (now < emergencyCallCooldownUntil) {
+		const seconds = Math.ceil((emergencyCallCooldownUntil - now) / 1000);
+		setPhoneStatus(`Notruf wieder in ${seconds} Sekunden verfügbar.`);
+		return;
+	}
+	emergencyCallCooldownUntil = now + 60000;
+	setPhoneStatus('Rettung unterwegs. Versorgung in 5 Sekunden.');
+	setTimeout(() => {
+		if (unconsciousUntil) return;
+		playerHealth = Math.min(100, playerHealth + 25);
+		updateHealthDisplay();
+		saveData();
+		showMessage('Der Rettungsdienst versorgt dich. Leben +25%.', 3000);
+		if (phonePanel.style.display === 'block') setPhoneStatus('Versorgung abgeschlossen. Notruf hat 60 Sekunden Pause.');
+	}, 5000);
+}
+
+closePhoneBtn.addEventListener('click', closePhone);
+phoneMapBtn.addEventListener('click', () => {
+	closePhone();
+	fullMapPanel.style.display = 'flex';
+});
+closeFullMapBtn.addEventListener('click', () => { fullMapPanel.style.display = 'none'; });
+phoneInventoryBtn.addEventListener('click', () => {
+	closePhone();
+	renderInventory();
+	inventoryPanel.style.display = 'block';
+});
+phoneQuestsBtn.addEventListener('click', () => {
+	closePhone();
+	updateQuestUI();
+	questPanel.style.display = 'block';
+});
+phoneEmergencyBtn.addEventListener('click', requestEmergencyHelp);
 
 function setTimeSpeed(speed) {
 	timeSpeed = speed;
@@ -6989,6 +7085,11 @@ document.addEventListener('keydown', e => {
 		const isSuccess = burglaryAttempt.markerPosition >= burglaryAttempt.targetStart &&
 			burglaryAttempt.markerPosition <= burglaryAttempt.targetStart + 22;
 		finishBurglaryAttempt(isSuccess);
+		return;
+	}
+	if (e.key.toLowerCase() === 'h' && !e.repeat) {
+		const activeTag = document.activeElement?.tagName;
+		if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') togglePhone();
 		return;
 	}
 	if (e.key.toLowerCase() === 'e') {

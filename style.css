@@ -661,6 +661,81 @@ h1 {
 #burglaryTarget { position: absolute; top: 0; bottom: 0; width: 22%; background: #4da96a; }
 #burglaryMarker { position: absolute; top: -4px; bottom: -4px; width: 5px; background: #fff; box-shadow: 0 0 8px #fff; }
 #cancelBurglaryBtn { padding: 8px 12px; border: 0; border-radius: 4px; background: #8f3a3a; color: #fff; cursor: pointer; }
+#phonePanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 1300;
+	width: min(320px, calc(100vw - 36px));
+	padding: 16px;
+	border: 1px solid #5f91ad;
+	border-radius: 7px;
+	background: rgba(12, 23, 33, 0.97);
+	color: #fff;
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+.phoneHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.phoneHeader h3, #phoneStatus { margin: 0; }
+.phoneHeader button {
+	width: 30px;
+	height: 30px;
+	border: 0;
+	border-radius: 4px;
+	background: #385163;
+	color: #fff;
+	cursor: pointer;
+}
+#phoneApps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 16px 0 12px; }
+#phoneApps button {
+	min-height: 64px;
+	border: 1px solid #567b91;
+	border-radius: 5px;
+	background: #1c4054;
+	color: #fff;
+	font-weight: bold;
+	cursor: pointer;
+}
+#phoneApps button:hover { background: #285b76; }
+#phoneEmergencyBtn { border-color: #c65151 !important; background: #7a3038 !important; }
+#phoneEmergencyBtn:hover { background: #9b3b45 !important; }
+#phoneStatus { min-height: 2.5em; color: #b9d7e7; font-size: 0.85rem; line-height: 1.35; }
+#fullMapPanel {
+	position: fixed;
+	inset: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+	z-index: 1400;
+	display: flex;
+	flex-direction: column;
+	padding: 14px;
+	border: 1px solid #6d9db6;
+	border-radius: 7px;
+	background: rgba(8, 18, 26, 0.98);
+	color: #fff;
+	box-shadow: 0 14px 34px rgba(0, 0, 0, 0.58);
+}
+.fullMapHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.fullMapHeader h3, #fullMapPanel p { margin: 0; }
+.fullMapHeader button {
+	width: 32px;
+	height: 32px;
+	border: 0;
+	border-radius: 4px;
+	background: #385163;
+	color: #fff;
+	cursor: pointer;
+}
+#fullMapCanvas {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+	border: 1px solid #395568;
+	border-radius: 4px;
+	background: #183b25;
+}
+#fullMapCanvas canvas { display: block; width: min(100%, calc(100vh - 118px)); height: min(100%, calc(100vh - 118px)); aspect-ratio: 1; }
+#fullMapPanel p { padding-top: 10px; color: #b9d7e7; font-size: 0.85rem; }
 #speedDisplay {
 	font-size: 1.2em;
 	font-weight: bold;
@@ -1374,7 +1449,7 @@ h1 {
 	height: 120px !important;
 	}
 	#dialogPanel, #shopPanel, #jobPanel, #questPanel, #carDealerPanel,
-	#fashionShopPanel, #bankRobberyPanel, #prisonReceptionPanel {
+	#fashionShopPanel, #bankRobberyPanel, #prisonReceptionPanel, #phonePanel {
 	box-sizing: border-box;
 	width: min(92vw, 400px);
 	min-width: 0;
@@ -1382,6 +1457,8 @@ h1 {
 	max-height: 62vh;
 	overflow-y: auto;
 	}
+	#fullMapPanel { inset: 10px; padding: 10px; }
+	#fullMapCanvas canvas { width: min(100%, calc(100vh - 102px)); height: min(100%, calc(100vh - 102px)); }
 	#dialogPanel {
 	bottom: 145px;
 	}
