@@ -4045,49 +4045,6 @@ function animate() {
 			Math.pow(npc.position.x - player.position.x, 2) +
 			Math.pow(npc.position.z - player.position.z, 2)
 		);
-		// Prüfe, ob NPC auf einer Straße wäre
-		let onStreet = false;
-		for (const s of streets) {
-			const minX = s.x - s.width / 2;
-			const maxX = s.x + s.width / 2;
-			const minZ = s.z - s.length / 2;
-			const maxZ = s.z + s.length / 2;
-			if (npc.position.x > minX && npc.position.x < maxX && npc.position.z > minZ && npc.position.z < maxZ) {
-				onStreet = true;
-				break;
-			}
-		}
-		const onZebraCrossing = isPointOnZebraCrossing(npc.position.x, npc.position.z);
-
-		// Normale NPCs dürfen Straßen nur über Zebrastreifen betreten
-		if (i >= 3 && onStreet && !onZebraCrossing) {
-			if (!npcCrosswalkTargets[i]) {
-				const now = Date.now();
-				const cooldownReady = now >= npcCrosswalkCooldowns[i];
-				if (cooldownReady && Math.random() < NPC_CROSSWALK_CHANCE) {
-					const crossing = getNearestZebraCrossing(npc.position.x, npc.position.z);
-					npcCrosswalkTargets[i] = { x: crossing.x, z: crossing.z };
-					npcCrosswalkReturnTargets[i] = { x: npcTargets[i].x, z: npcTargets[i].z };
-					npcTargets[i] = { x: crossing.x, z: crossing.z };
-					npcCrosswalkCooldowns[i] = now + NPC_CROSSWALK_COOLDOWN_MS;
-				} else {
-					npcTargets[i] = getValidSpawn();
-					npcCrosswalkCooldowns[i] = now + 3000;
-				}
-			}
-		} else if (i >= 3 && npcCrosswalkTargets[i] && onZebraCrossing) {
-			npcTargets[i] = {
-				x: npcCrosswalkReturnTargets[i].x,
-				z: npcCrosswalkReturnTargets[i].z
-			};
-			npcCrosswalkTargets[i] = null;
-			npcCrosswalkReturnTargets[i] = null;
-		}
-
-		// Polizei darf weiter frei laufen; normale NPCs bewegen sich nur auf Straße, wenn sie den Zebrastreifen benutzen
-		if (onStreet && i >= 3 && !onZebraCrossing && !npcCrosswalkTargets[i]) {
-			continue;
-		}
 		// Wenn Spieler nahe (<7), NPC bleibt stehen und winkt mit beiden Armen
 		const leftArm = npc.getObjectByName('leftArm');
 		const rightArm = npc.getObjectByName('rightArm');
