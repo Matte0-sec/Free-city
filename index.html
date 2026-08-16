@@ -4,7 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 	<title>Free City 3D</title>
-	<link rel="stylesheet" href="style.css?v=20260816-fullmap">
+	<link rel="stylesheet" href="style.css?v=20260816-taxi">
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
 	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
@@ -142,6 +142,7 @@
 			<button id="phoneMapBtn" type="button">Karte</button>
 			<button id="phoneInventoryBtn" type="button">Inventar</button>
 			<button id="phoneQuestsBtn" type="button">Quests</button>
+			<button id="phoneTaxiBtn" type="button">Taxi</button>
 			<button id="phoneEmergencyBtn" type="button">Notruf</button>
 		</div>
 		<p id="phoneStatus">Karte, Inventar und Quests immer dabei.</p>
@@ -153,6 +154,20 @@
 		</div>
 		<div id="fullMapCanvas" aria-label="Stadt von oben"></div>
 		<p>Du bist der rote Marker.</p>
+	</div>
+	<div id="taxiDestinationPanel" style="display: none;" aria-label="Taxi-Ziel">
+		<h3>Wohin soll es gehen?</h3>
+		<p id="taxiDestinationStatus">Nenne einen Ort oder waehle ihn auf der Karte.</p>
+		<div class="taxiDestinationRow">
+			<input id="taxiDestinationInput" type="text" placeholder="Zum Beispiel: Autohaus">
+			<button id="taxiNavigateBtn" type="button">Navigation</button>
+		</div>
+		<button id="taxiMapBtn" type="button">Ziel auf Karte waehlen</button>
+	</div>
+	<div id="taxiPaymentPanel" style="display: none;" aria-label="Taxi bezahlen">
+		<h3>Taxi angekommen</h3>
+		<p id="taxiPaymentStatus"></p>
+		<button id="payTaxiBtn" type="button">Bezahlen</button>
 	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
@@ -334,6 +349,6 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js?v=20260816-fullmap"></script>
+	<script src="script.js?v=20260816-taxi"></script>
 </body>
 </html>

@@ -87,11 +87,20 @@ const closePhoneBtn = document.getElementById('closePhoneBtn');
 const phoneMapBtn = document.getElementById('phoneMapBtn');
 const phoneInventoryBtn = document.getElementById('phoneInventoryBtn');
 const phoneQuestsBtn = document.getElementById('phoneQuestsBtn');
+const phoneTaxiBtn = document.getElementById('phoneTaxiBtn');
 const phoneEmergencyBtn = document.getElementById('phoneEmergencyBtn');
 const phoneStatus = document.getElementById('phoneStatus');
 const fullMapPanel = document.getElementById('fullMapPanel');
 const closeFullMapBtn = document.getElementById('closeFullMapBtn');
 const fullMapCanvas = document.getElementById('fullMapCanvas');
+const taxiDestinationPanel = document.getElementById('taxiDestinationPanel');
+const taxiDestinationStatus = document.getElementById('taxiDestinationStatus');
+const taxiDestinationInput = document.getElementById('taxiDestinationInput');
+const taxiNavigateBtn = document.getElementById('taxiNavigateBtn');
+const taxiMapBtn = document.getElementById('taxiMapBtn');
+const taxiPaymentPanel = document.getElementById('taxiPaymentPanel');
+const taxiPaymentStatus = document.getElementById('taxiPaymentStatus');
+const payTaxiBtn = document.getElementById('payTaxiBtn');
 let unreadChatMessages = 0;
 
 function getGameData(key) {
@@ -4251,6 +4260,7 @@ function animate() {
 
 	// Fahrzeug-Bewegung aktualisieren
 	updateVehicleMovement();
+	updateTaxiRide();
 
 	// Spieler-Marker für Minimap aktualisieren und rendern
 	playerMarker.position.x = player.position.x;
@@ -4501,6 +4511,127 @@ function damagePlayer(amount, reason = 'Schaden') {
 }
 
 let emergencyCallCooldownUntil = 0;
+let taxiVehicle = null;
+let taxiState = 'idle';
+let taxiDestination = null;
+let taxiFare = 0;
+let taxiMapSelectionActive = false;
+
+function moveTaxiToward(target, speed) {
+	const offsetX = target.x - taxiVehicle.position.x;
+	const offsetZ = target.z - taxiVehicle.position.z;
+	const distance = Math.hypot(offsetX, offsetZ);
+	if (distance > 0.01) {
+		taxiVehicle.rotation.y = Math.atan2(offsetX, offsetZ);
+		taxiVehicle.position.x += (offsetX / distance) * Math.min(speed, distance);
+		taxiVehicle.position.z += (offsetZ / distance) * Math.min(speed, distance);
+	}
+	return distance;
+}
+
+function requestTaxi() {
+	if (taxiState !== 'idle') {
+		setPhoneStatus(taxiState === 'waitingPickup' ? 'Dein Taxi wartet bereits auf dich.' : 'Dein Taxi ist bereits unterwegs.');
+		return;
+	}
+	if (isInVehicle) {
+		setPhoneStatus('Steige erst aus deinem Fahrzeug aus.');
+		return;
+	}
+	const spawnX = Math.max(-550, Math.min(550, player.position.x - 100));
+	const spawnZ = Math.max(-550, Math.min(550, player.position.z - 100));
+	taxiVehicle = createCar('small', spawnX, spawnZ, 0xf2c400);
+	taxiVehicle.userData.isTaxi = true;
+	scene.add(taxiVehicle);
+	taxiState = 'approaching';
+	closePhone();
+	showMessage('Taxi gerufen. Das gelbe Auto ist unterwegs.', 3000);
+}
+
+function updateTaxiRide() {
+	if (!taxiVehicle) return;
+	if (taxiState === 'approaching') {
+		if (moveTaxiToward(player.position, 1.7) < 6) {
+			taxiState = 'waitingPickup';
+			showMessage('Dein Taxi ist da. Drücke E zum Einsteigen.', 3500);
+		}
+		return;
+	}
+	if (taxiState === 'driving' && taxiDestination) {
+		if (moveTaxiToward(taxiDestination, 2.2) < 3) {
+			taxiState = 'waitingPayment';
+			player.position.copy(taxiVehicle.position);
+			player.position.x += 3;
+			player.position.y = 0;
+			player.visible = true;
+			taxiPaymentStatus.textContent = `Fahrt zu ${taxiDestination.label}: ${taxiFare} Euro.`;
+			taxiPaymentPanel.style.display = 'block';
+			showMessage(`Angekommen bei ${taxiDestination.label}. Bitte bezahle ${taxiFare} Euro.`, 3500);
+		} else {
+			player.position.copy(taxiVehicle.position);
+			player.position.y = 2;
+		}
+	}
+}
+
+function enterTaxi() {
+	if (!taxiVehicle || taxiState !== 'waitingPickup') return false;
+	if (Math.hypot(taxiVehicle.position.x - player.position.x, taxiVehicle.position.z - player.position.z) > 8) return false;
+	taxiState = 'choosingDestination';
+	player.visible = false;
+	player.position.copy(taxiVehicle.position);
+	player.position.y = 2;
+	taxiDestinationInput.value = '';
+	taxiDestinationStatus.textContent = 'Nenne einen Ort oder waehle ihn auf der Karte.';
+	taxiDestinationPanel.style.display = 'block';
+	showMessage('Wohin soll es gehen?', 2000);
+	return true;
+}
+
+function setTaxiDestination(target) {
+	if (!taxiVehicle || taxiState !== 'choosingDestination' || !target) return;
+	taxiDestination = { x: target.x, z: target.z, label: target.label };
+	taxiFare = Math.max(25, Math.ceil(Math.hypot(taxiVehicle.position.x - target.x, taxiVehicle.position.z - target.z) * 0.35));
+	taxiState = 'driving';
+	taxiMapSelectionActive = false;
+	taxiDestinationPanel.style.display = 'none';
+	fullMapPanel.style.display = 'none';
+	showMessage(`Taxi fährt zu ${target.label}. Preis: ${taxiFare} Euro.`, 3000);
+}
+
+function chooseTaxiNavigation() {
+	const query = normalizeMapSearchText(taxiDestinationInput.value);
+	const target = getMapSearchTargets().find(entry => normalizeMapSearchText(entry.label).includes(query));
+	if (!query || !target) {
+		taxiDestinationStatus.textContent = 'Ort nicht gefunden. Probiere zum Beispiel Autohaus oder Wohnhaus.';
+		return;
+	}
+	setTaxiDestination(target);
+}
+
+function chooseTaxiDestinationOnMap() {
+	taxiMapSelectionActive = true;
+	taxiDestinationPanel.style.display = 'none';
+	fullMapPanel.style.display = 'flex';
+	showMessage('Tippe auf die Stadtkarte, um das Taxi-Ziel zu waehlen.', 3000);
+}
+
+function payTaxiFare() {
+	if (taxiState !== 'waitingPayment') return;
+	if (money < taxiFare) {
+		taxiPaymentStatus.textContent = `Du brauchst ${taxiFare} Euro, hast aber nur ${money} Euro.`;
+		return;
+	}
+	money -= taxiFare;
+	moneySpan.textContent = `Geld: ${money} €`;
+	saveData();
+	taxiPaymentPanel.style.display = 'none';
+	scene.remove(taxiVehicle);
+	taxiVehicle = null;
+	taxiState = 'idle';
+	taxiDestination = null;
+	showMessage(`Taxi bezahlt: -${taxiFare} Euro.`, 3000);
+}
 
 function setPhoneStatus(message) {
 	phoneStatus.textContent = message;
@@ -4559,7 +4690,13 @@ phoneMapBtn.addEventListener('click', () => {
 	closePhone();
 	fullMapPanel.style.display = 'flex';
 });
-closeFullMapBtn.addEventListener('click', () => { fullMapPanel.style.display = 'none'; });
+closeFullMapBtn.addEventListener('click', () => {
+	fullMapPanel.style.display = 'none';
+	if (taxiMapSelectionActive) {
+		taxiMapSelectionActive = false;
+		taxiDestinationPanel.style.display = 'block';
+	}
+});
 phoneInventoryBtn.addEventListener('click', () => {
 	closePhone();
 	renderInventory();
@@ -4570,7 +4707,21 @@ phoneQuestsBtn.addEventListener('click', () => {
 	updateQuestUI();
 	questPanel.style.display = 'block';
 });
+phoneTaxiBtn.addEventListener('click', requestTaxi);
 phoneEmergencyBtn.addEventListener('click', requestEmergencyHelp);
+taxiNavigateBtn.addEventListener('click', chooseTaxiNavigation);
+taxiDestinationInput.addEventListener('keydown', event => {
+	if (event.key === 'Enter') chooseTaxiNavigation();
+});
+taxiMapBtn.addEventListener('click', chooseTaxiDestinationOnMap);
+payTaxiBtn.addEventListener('click', payTaxiFare);
+fullMapCanvas.addEventListener('click', event => {
+	if (!taxiMapSelectionActive || taxiState !== 'choosingDestination') return;
+	const canvasBounds = fullMapRenderer.domElement.getBoundingClientRect();
+	const x = ((event.clientX - canvasBounds.left) / canvasBounds.width - 0.5) * 1200;
+	const z = (0.5 - (event.clientY - canvasBounds.top) / canvasBounds.height) * 1200;
+	setTaxiDestination({ x, z, label: 'Kartenmarkierung' });
+});
 
 function setTimeSpeed(speed) {
 	timeSpeed = speed;
@@ -7093,6 +7244,7 @@ document.addEventListener('keydown', e => {
 		return;
 	}
 	if (e.key.toLowerCase() === 'e') {
+		if (enterTaxi()) return;
 		if (isInBurglaryHouse && tryStealResidentMoney()) return;
 		if (isInCasino && tryOpenCasinoTable()) return;
 		if (isInParkAtmRoom && tryOpenParkAtm()) return;
