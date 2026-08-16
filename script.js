@@ -776,7 +776,11 @@ const housePlots = [
 	{ x: -380, z: 180, name: 'Grundstück 3' },
 	{ x: 420, z: -320, name: 'Grundstück 4' },
 	{ x: -500, z: -320, name: 'Grundstück 5' },
-	{ x: 540, z: 420, name: 'Verstecktes Grundstück' }
+	{ x: 540, z: 420, name: 'Verstecktes Grundstück' },
+	{ x: 500, z: 500, name: 'Grundstück 7' },
+	{ x: -500, z: 500, name: 'Grundstück 8' },
+	{ x: 500, z: -500, name: 'Grundstück 9' },
+	{ x: -500, z: -500, name: 'Grundstück 10' }
 ];
 
 const houseCatalog = [
@@ -1024,7 +1028,7 @@ minimapRenderer.setSize(200, 200);
 minimapRenderer.setClearColor(0x000000, 0.5);
 minimapContainer.appendChild(minimapRenderer.domElement);
 
-const minimapCamera = new THREE.OrthographicCamera(-240, 240, 240, -240, 0.1, 1000);
+const minimapCamera = new THREE.OrthographicCamera(-600, 600, 600, -600, 0.1, 1000);
 minimapCamera.position.set(0, 200, 0);
 minimapCamera.lookAt(0, 0, 0);
 
@@ -1362,15 +1366,19 @@ function animateCars() {
 }
 // Straßen-Definitionen für Kollisionslogik
 const streets = [
-	{ x: 0, z: -420, width: 700, length: 24, rot: 0 },
-	{ x: 0, z: 420, width: 700, length: 24, rot: 0 },
-	{ x: 420, z: 0, width: 24, length: 700, rot: 0 },
-	{ x: -420, z: 0, width: 24, length: 700, rot: 0 },
-	{ x: 0, z: 0, width: 700, length: 24, rot: 0 },
-	{ x: 0, z: -180, width: 520, length: 18, rot: 0 },
-	{ x: 0, z: 180, width: 520, length: 18, rot: 0 },
-	{ x: 180, z: 0, width: 18, length: 520, rot: 0 },
-	{ x: -180, z: 0, width: 18, length: 520, rot: 0 }
+	{ x: 0, z: -540, width: 1100, length: 24, rot: 0 },
+	{ x: 0, z: 540, width: 1100, length: 24, rot: 0 },
+	{ x: 540, z: 0, width: 24, length: 1100, rot: 0 },
+	{ x: -540, z: 0, width: 24, length: 1100, rot: 0 },
+	{ x: 0, z: 0, width: 1100, length: 24, rot: 0 },
+	{ x: 0, z: -360, width: 900, length: 18, rot: 0 },
+	{ x: 0, z: -180, width: 900, length: 18, rot: 0 },
+	{ x: 0, z: 180, width: 900, length: 18, rot: 0 },
+	{ x: 0, z: 360, width: 900, length: 18, rot: 0 },
+	{ x: -360, z: 0, width: 18, length: 900, rot: 0 },
+	{ x: -180, z: 0, width: 18, length: 900, rot: 0 },
+	{ x: 180, z: 0, width: 18, length: 900, rot: 0 },
+	{ x: 360, z: 0, width: 18, length: 900, rot: 0 }
 ];
 for (const s of streets) {
 	createStreet(s.x, s.z, s.width, s.length, s.rot);
@@ -2086,6 +2094,14 @@ const buildings = [
 	{ x: -220, z: 420, color: 0x4834d4, label: 'Wohnhaus H', houseType: 'colonial' },
 	{ x: 440, z: 360, color: 0x22a6b3, label: 'Wohnhaus I', houseType: 'default' },
 	{ x: -440, z: -40, color: 0xf0932b, label: 'Wohnhaus J', houseType: 'flat' }
+	,{ x: 500, z: 260, color: 0xd980fa, label: 'Wohnhaus K', houseType: 'default' }
+	,{ x: 440, z: -260, color: 0x63cdda, label: 'Wohnhaus L', houseType: 'cottage' }
+	,{ x: -500, z: 280, color: 0xf8a5c2, label: 'Wohnhaus M', houseType: 'flat' }
+	,{ x: -460, z: -280, color: 0x78e08f, label: 'Wohnhaus N', houseType: 'default' }
+	,{ x: 300, z: 500, color: 0xe58e26, label: 'Wohnhaus O', houseType: 'colonial' }
+	,{ x: -300, z: -500, color: 0x60a3bc, label: 'Wohnhaus P', houseType: 'modern' }
+	,{ x: 120, z: 480, color: 0xb8e994, label: 'Wohnhaus Q', houseType: 'cottage' }
+	,{ x: -120, z: -480, color: 0xfa983a, label: 'Wohnhaus R', houseType: 'flat' }
 ];
 const buildingBounds = [];
 let currentBuildingIndex = null; // Spieler aktuell in diesem Gebäude oder null
@@ -3260,8 +3276,8 @@ function getValidSpawn() {
 	let x, z;
 	let tries = 0;
 	do {
-		x = Math.random() * 600 - 300; // größeres Gebiet
-		z = Math.random() * 600 - 300;
+		x = Math.random() * 1100 - 550;
+		z = Math.random() * 1100 - 550;
 		tries++;
 		// nicht in Gebäude
 		let inBuilding = false;
@@ -3315,7 +3331,7 @@ function addNPCs(count) {
 	}
 }
 
-addNPCs(60); // vorher waren es 30
+addNPCs(100);
 
 function addRequesterNPCs() {
 	const requesterSpots = [
@@ -4046,8 +4062,8 @@ function animate() {
 				player.position.set(0, 0, 0); // Zurück zur Startposition
 				npcIsChasing[i] = false; // Verfolgung beenden
 				npcTargets[i] = {
-					x: Math.random() * 260 - 130,
-					z: Math.random() * 260 - 130
+					x: Math.random() * 1100 - 550,
+					z: Math.random() * 1100 - 550
 				};
 			}
 			continue; // Überspringe normale Bewegung
@@ -4089,8 +4105,8 @@ function animate() {
 			} else {
 				// Neues Ziel
 				npcTargets[i] = {
-					x: Math.random() * 260 - 130,
-					z: Math.random() * 260 - 130
+					x: Math.random() * 1100 - 550,
+					z: Math.random() * 1100 - 550
 				};
 				// Beine stehen still
 				const leftLeg = npc.children.find(obj => obj.position.x === -0.3);
