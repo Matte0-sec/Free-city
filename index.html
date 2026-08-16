@@ -109,6 +109,22 @@
 		</form>
 		<button id="closeParkAtmBtn" type="button">Schließen</button>
 	</div>
+	<div id="casinoPanel" style="display: none;" aria-label="Casino">
+		<h3>Casino</h3>
+		<p id="casinoStatus">Wähle einen Einsatz und ein Spiel.</p>
+		<div id="casinoBets" aria-label="Einsatz wählen">
+			<button type="button" data-bet="100">100€</button>
+			<button type="button" data-bet="500">500€</button>
+			<button type="button" data-bet="1000">1000€</button>
+		</div>
+		<p id="casinoSelectedBet">Einsatz: 100€</p>
+		<div id="casinoGames">
+			<button id="spinCasinoWheelBtn" type="button">Glücksrad</button>
+			<button id="rollCasinoDiceBtn" type="button">Würfel</button>
+		</div>
+		<p class="casinoHint">Glücksrad: 0€, Einsatz zurück oder 3x Gewinn. Würfel: 4-6 gewinnt doppelt.</p>
+		<button id="closeCasinoBtn" type="button">Schließen</button>
+	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
 		<h3>AUFZUG</h3>
@@ -289,6 +305,6 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js?v=20260815-park-atm"></script>
+	<script src="script.js?v=20260816-casino"></script>
 </body>
 </html>

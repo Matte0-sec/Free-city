@@ -70,6 +70,13 @@ const parkAtmPanel = document.getElementById('parkAtmPanel');
 const parkAtmForm = document.getElementById('parkAtmForm');
 const parkAtmPin = document.getElementById('parkAtmPin');
 const closeParkAtmBtn = document.getElementById('closeParkAtmBtn');
+const casinoPanel = document.getElementById('casinoPanel');
+const casinoStatus = document.getElementById('casinoStatus');
+const casinoSelectedBet = document.getElementById('casinoSelectedBet');
+const casinoBetButtons = document.querySelectorAll('#casinoBets button');
+const spinCasinoWheelBtn = document.getElementById('spinCasinoWheelBtn');
+const rollCasinoDiceBtn = document.getElementById('rollCasinoDiceBtn');
+const closeCasinoBtn = document.getElementById('closeCasinoBtn');
 let unreadChatMessages = 0;
 
 function getGameData(key) {
@@ -796,7 +803,9 @@ let isLyingInPlayerHouse = false;
 let activePlayerHouse = null;
 const playerHouseInteriorPosition = { x: 700, y: 0, z: 700 };
 const parkPosition = { x: 0, z: 80 };
+const casinoPosition = { x: -300, z: -80 };
 const parkAtmInteriorPosition = { x: 760, y: 0, z: 700 };
+const casinoInteriorPosition = { x: 820, y: 0, z: 700 };
 const parkAtmPinCode = '7319';
 const parkAtmPayoutInterval = 5 * 60 * 1000;
 let parkAtmRoom = null;
@@ -805,6 +814,10 @@ let isInParkAtmRoom = false;
 let parkAtmActivated = getGameData('parkAtmActivated') === 'true';
 let parkAtmLastPayoutAt = Number(getGameData('parkAtmLastPayoutAt')) || Date.now();
 let isGameSessionActive = false;
+let casinoRoom = null;
+let casinoTable = null;
+let isInCasino = false;
+let casinoBet = 100;
 const jailPosition = { x: 180, y: 0, z: -255 };
 const jailFloorHeight = 9;
 let jailRoom = null;
@@ -2061,6 +2074,7 @@ const buildings = [
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
 	{ x: 0, z: -260, color: 0x336666, label: 'Bahnhof', houseType: 'flat' },
 	{ x: -80, z: 200, color: 0xFF6B35, label: 'Autohaus', houseType: 'flat' },
+	{ x: -300, z: -80, color: 0x8c2d51, label: 'Casino', houseType: 'modern' },
 	{ x: 0, z: -80, color: 0xd84d86, label: 'Modeshop', houseType: 'flat' },
 	{ x: 360, z: -340, color: 0x9c88ff, label: 'Wohnhaus A', houseType: 'flat' },
 	{ x: 420, z: -140, color: 0x7ed6df, label: 'Wohnhaus B', houseType: 'colonial' },
@@ -5268,6 +5282,119 @@ closeParkAtmBtn.addEventListener('click', () => {
 	parkAtmPanel.style.display = 'none';
 });
 
+function createCasinoRoom() {
+	if (casinoRoom) return;
+	const room = new THREE.Group();
+	room.position.set(casinoInteriorPosition.x, casinoInteriorPosition.y, casinoInteriorPosition.z);
+	const floor = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 20), new THREE.MeshPhongMaterial({ color: 0x4b1429 }));
+	room.add(floor);
+	const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x29101c });
+	[
+		{ size: [24, 9, 0.4], position: [0, 4.5, -10] },
+		{ size: [24, 9, 0.4], position: [0, 4.5, 10] },
+		{ size: [0.4, 9, 20], position: [-12, 4.5, 0] },
+		{ size: [0.4, 9, 20], position: [12, 4.5, 0] }
+	].forEach(wall => {
+		const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), wallMaterial);
+		mesh.position.set(...wall.position);
+		room.add(mesh);
+	});
+	const table = new THREE.Group();
+	const base = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 1.1, 20), new THREE.MeshPhongMaterial({ color: 0x44231b }));
+	base.position.y = 0.55;
+	table.add(base);
+	const top = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 0.35, 24), new THREE.MeshPhongMaterial({ color: 0x167450 }));
+	top.position.y = 1.25;
+	table.add(top);
+	table.position.set(0, 0, -2);
+	room.add(table);
+	const lamp = new THREE.PointLight(0xffd27b, 1.5, 26);
+	lamp.position.set(0, 7, -2);
+	room.add(lamp);
+	scene.add(room);
+	casinoRoom = room;
+	casinoTable = table;
+}
+
+function enterCasino() {
+	if (isInVehicle) return;
+	createCasinoRoom();
+	isInCasino = true;
+	player.rotation.set(0, 0, 0);
+	player.position.set(casinoInteriorPosition.x, 0, casinoInteriorPosition.z + 7);
+	showMessage('Willkommen im Casino. Drücke E am Spieltisch, R zum Verlassen.', 3500);
+}
+
+function exitCasino() {
+	isInCasino = false;
+	casinoPanel.style.display = 'none';
+	player.position.set(casinoPosition.x, 0, casinoPosition.z + 14);
+	showMessage('Du hast das Casino verlassen.', 2000);
+}
+
+function updateCasinoBet() {
+	casinoSelectedBet.textContent = `Einsatz: ${casinoBet}€`;
+	casinoBetButtons.forEach(button => button.classList.toggle('selected', Number(button.dataset.bet) === casinoBet));
+}
+
+function placeCasinoBet() {
+	if (money < casinoBet) {
+		casinoStatus.textContent = 'Dafür hast du nicht genug Geld.';
+		showMessage('Zu wenig Geld für diesen Einsatz.', 2000);
+		return false;
+	}
+	money -= casinoBet;
+	moneySpan.textContent = `Geld: ${money} €`;
+	return true;
+}
+
+function settleCasinoGame(label, multiplier) {
+	const payout = casinoBet * multiplier;
+	money += payout;
+	moneySpan.textContent = `Geld: ${money} €`;
+	saveData();
+	if (multiplier === 0) {
+		casinoStatus.textContent = `${label}: verloren. -${casinoBet}€`;
+	} else {
+		casinoStatus.textContent = `${label}: +${payout - casinoBet}€ Gewinn`;
+	}
+}
+
+function tryOpenCasinoTable() {
+	if (!isInCasino || !casinoTable) return false;
+	const tablePosition = new THREE.Vector3();
+	casinoTable.getWorldPosition(tablePosition);
+	if (player.position.distanceTo(tablePosition) > 6) {
+		showMessage('Gehe näher an den Spieltisch.', 1500);
+		return true;
+	}
+	updateCasinoBet();
+	casinoStatus.textContent = 'Wähle einen Einsatz und ein Spiel.';
+	casinoPanel.style.display = 'block';
+	return true;
+}
+
+casinoBetButtons.forEach(button => button.addEventListener('click', () => {
+	casinoBet = Number(button.dataset.bet);
+	updateCasinoBet();
+}));
+
+spinCasinoWheelBtn.addEventListener('click', () => {
+	if (!placeCasinoBet()) return;
+	const multiplier = [0, 0, 1, 1, 3][Math.floor(Math.random() * 5)];
+	settleCasinoGame('Glücksrad', multiplier);
+});
+
+rollCasinoDiceBtn.addEventListener('click', () => {
+	if (!placeCasinoBet()) return;
+	const roll = Math.floor(Math.random() * 6) + 1;
+	settleCasinoGame(`Würfel ${roll}`, roll >= 4 ? 2 : 0);
+});
+
+closeCasinoBtn.addEventListener('click', () => {
+	casinoPanel.style.display = 'none';
+});
+
 function collectMysteryBox() {
 	const now = Date.now();
 	if (now < mysteryBoxRewardCooldown) return;
@@ -6689,6 +6816,7 @@ testFootPoliceBtn.addEventListener('click', () => runBankRobberyAction(testFootP
 
 document.addEventListener('keydown', e => {
 	if (e.key.toLowerCase() === 'e') {
+		if (isInCasino && tryOpenCasinoTable()) return;
 		if (isInParkAtmRoom && tryOpenParkAtm()) return;
 		if (isInMysteryBasement) {
 			if (mysteryBasementBox && mysteryBasementRoom) {
@@ -6779,6 +6907,10 @@ document.addEventListener('keydown', e => {
 	}
 	}
 	if (e.key.toLowerCase() === 'r') {
+		if (isInCasino) {
+			exitCasino();
+			return;
+		}
 		if (isInParkAtmRoom) {
 			exitParkAtmRoom();
 			return;
@@ -6797,6 +6929,10 @@ document.addEventListener('keydown', e => {
 		}
 		if (!isInVehicle && Math.hypot(player.position.x - parkPosition.x, player.position.z - parkPosition.z) < 24) {
 			enterParkAtmRoom();
+			return;
+		}
+		if (!isInVehicle && Math.hypot(player.position.x - casinoPosition.x, player.position.z - casinoPosition.z) < 20) {
+			enterCasino();
 			return;
 		}
 		// Dialog mit NPC starten, wenn nahe genug
