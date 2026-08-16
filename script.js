@@ -77,6 +77,11 @@ const casinoBetButtons = document.querySelectorAll('#casinoBets button');
 const spinCasinoWheelBtn = document.getElementById('spinCasinoWheelBtn');
 const rollCasinoDiceBtn = document.getElementById('rollCasinoDiceBtn');
 const closeCasinoBtn = document.getElementById('closeCasinoBtn');
+const burglaryPanel = document.getElementById('burglaryPanel');
+const burglaryTarget = document.getElementById('burglaryTarget');
+const burglaryMarker = document.getElementById('burglaryMarker');
+const burglaryStatus = document.getElementById('burglaryStatus');
+const cancelBurglaryBtn = document.getElementById('cancelBurglaryBtn');
 let unreadChatMessages = 0;
 
 function getGameData(key) {
@@ -755,6 +760,7 @@ let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 
 let hunger = Math.max(0, Math.min(100, Number(getGameData('hunger')) || 100));
 let foodInventory = JSON.parse(getGameData('foodInventory') || '{"apple":0,"bread":0,"drink":0}');
 foodInventory.prisonFreeCard = Number(foodInventory.prisonFreeCard) || 0;
+let residentMoney = JSON.parse(getGameData('residentMoney') || '{}');
 let lastHungerUpdate = Date.now();
 let lastStarvationDamage = 0;
 let unconsciousUntil = 0;
@@ -822,6 +828,12 @@ let casinoRoom = null;
 let casinoTable = null;
 let isInCasino = false;
 let casinoBet = 100;
+const burglaryInteriorPosition = { x: 880, y: 0, z: 700 };
+let burglaryInterior = null;
+let burglaryTable = null;
+let activeBurglaryHouse = null;
+let isInBurglaryHouse = false;
+let burglaryAttempt = null;
 const jailPosition = { x: 180, y: 0, z: -255 };
 const jailFloorHeight = 9;
 let jailRoom = null;
@@ -971,6 +983,7 @@ function saveData() {
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
 	setGameData('foodInventory', JSON.stringify(foodInventory));
+	setGameData('residentMoney', JSON.stringify(residentMoney));
 	setGameData('parkAtmActivated', parkAtmActivated);
 	setGameData('parkAtmLastPayoutAt', parkAtmLastPayoutAt);
 	setGameData('jobEarnings', JSON.stringify(jobEarnings || {}));
@@ -3800,7 +3813,7 @@ function animate() {
 	// Geschwindigkeitsanzeige aktualisieren
 	updateSpeedDisplay();
 	
-	if (!isInVehicle && !isLyingInPlayerHouse && !unconsciousUntil) {
+	if (!isInVehicle && !isLyingInPlayerHouse && !unconsciousUntil && !burglaryAttempt) {
 		// Bewegung mit Kollisionsabfrage (relativ zur Kameraperspektive)
 		let speed = keys['shift'] ? 0.85 : 0.5;
 		let nextX = player.position.x;
@@ -5198,6 +5211,146 @@ function exitPlayerHouse() {
 	activePlayerHouse = null;
 	showMessage('Du hast dein Haus verlassen.', 2000);
 }
+
+function getResidentMoney(house) {
+	if (!Number.isFinite(residentMoney[house.label])) {
+		residentMoney[house.label] = 500 + Math.floor(Math.random() * 4501);
+	}
+	return residentMoney[house.label];
+}
+
+function createBurglaryInterior(house) {
+	if (burglaryInterior?.parent) burglaryInterior.parent.remove(burglaryInterior);
+	const styleIndex = buildings.findIndex(building => building.label === house.label);
+	const paletteHue = (styleIndex * 0.137) % 1;
+	const style = {
+		floor: new THREE.Color().setHSL(paletteHue, 0.28, 0.28),
+		walls: new THREE.Color().setHSL((paletteHue + 0.08) % 1, 0.32, 0.82),
+		bed: new THREE.Color().setHSL((paletteHue + 0.52) % 1, 0.38, 0.52),
+		table: new THREE.Color().setHSL((paletteHue + 0.92) % 1, 0.34, 0.3)
+	};
+	const room = new THREE.Group();
+	room.position.set(burglaryInteriorPosition.x, burglaryInteriorPosition.y, burglaryInteriorPosition.z);
+	room.add(new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 20), new THREE.MeshPhongMaterial({ color: style.floor })));
+	[
+		{ size: [24, 8, 0.4], position: [0, 4, -10] },
+		{ size: [24, 8, 0.4], position: [0, 4, 10] },
+		{ size: [0.4, 8, 20], position: [-12, 4, 0] },
+		{ size: [0.4, 8, 20], position: [12, 4, 0] }
+	].forEach(wall => {
+		const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), new THREE.MeshPhongMaterial({ color: style.walls }));
+		mesh.position.set(...wall.position);
+		room.add(mesh);
+	});
+	const bedX = styleIndex % 2 === 0 ? -6 : 6;
+	const bedZ = [-5, -2, 3, 5][styleIndex % 4];
+	const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.8, 4), new THREE.MeshPhongMaterial({ color: 0x4c3023 }));
+	bedFrame.position.set(bedX, 1, bedZ);
+	room.add(bedFrame);
+	const mattress = new THREE.Mesh(new THREE.BoxGeometry(6.1, 0.65, 3.6), new THREE.MeshPhongMaterial({ color: style.bed }));
+	mattress.position.set(bedX, 1.7, bedZ);
+	room.add(mattress);
+	const tv = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.6, 0.3), new THREE.MeshPhongMaterial({ color: 0x12191f, emissive: 0x172b38 }));
+	tv.position.set(-bedX, 3.2, styleIndex % 3 === 0 ? -6.5 : 6.5);
+	room.add(tv);
+	const table = new THREE.Mesh(new THREE.BoxGeometry(6, 1.4, 3.4), new THREE.MeshPhongMaterial({ color: style.table }));
+	table.position.set(styleIndex % 3 === 0 ? -2 : styleIndex % 3 === 1 ? 2 : 0, 1.1, styleIndex % 2 === 0 ? 3.5 : -2.5);
+	room.add(table);
+	const light = new THREE.PointLight(0xffe3b0, 1.05, 28);
+	light.position.set(0, 6.5, 0);
+	room.add(light);
+	scene.add(room);
+	burglaryInterior = room;
+	burglaryTable = table;
+}
+
+function enterBurglaryHouse(house) {
+	activeBurglaryHouse = house;
+	createBurglaryInterior(house);
+	isInBurglaryHouse = true;
+	player.rotation.set(0, 0, 0);
+	player.position.set(burglaryInteriorPosition.x, 0, burglaryInteriorPosition.z + 7);
+	showMessage('Du bist im Haus. Drücke E nahe dem Tisch, R zum Verlassen.', 3500);
+}
+
+function exitBurglaryHouse() {
+	if (!activeBurglaryHouse) return;
+	player.position.set(activeBurglaryHouse.x, 0, activeBurglaryHouse.z + 14);
+	isInBurglaryHouse = false;
+	activeBurglaryHouse = null;
+	showMessage('Du hast das Wohnhaus verlassen.', 2000);
+}
+
+function triggerBurglaryAlarm() {
+	policeAlert = true;
+	wantedLevel = Math.min(5, wantedLevel + 2);
+	updateWantedLevelDisplay();
+	spawnPoliceCars();
+	spawnFootPolice();
+	showMessage('Einbruch fehlgeschlagen! Die Polizei ist alarmiert. +2 Wanted.', 4000);
+}
+
+function finishBurglaryAttempt(success) {
+	if (!burglaryAttempt) return;
+	clearInterval(burglaryAttempt.interval);
+	burglaryAttempt = null;
+	burglaryPanel.style.display = 'none';
+	if (success) enterBurglaryHouse(activeBurglaryHouse);
+	else triggerBurglaryAlarm();
+}
+
+function startBurglaryAttempt(house) {
+	if (burglaryAttempt || isInVehicle) return;
+	activeBurglaryHouse = house;
+	const targetStart = 20 + Math.random() * 45;
+	burglaryTarget.style.left = `${targetStart}%`;
+	burglaryMarker.style.left = '0%';
+	burglaryStatus.textContent = 'Warte auf den grünen Bereich.';
+	burglaryPanel.style.display = 'block';
+	let markerPosition = 0;
+	let direction = 1;
+	const startedAt = Date.now();
+	burglaryAttempt = {
+		targetStart,
+		markerPosition,
+		interval: setInterval(() => {
+			markerPosition += direction * 1.7;
+			if (markerPosition >= 98 || markerPosition <= 0) direction *= -1;
+			burglaryAttempt.markerPosition = Math.max(0, Math.min(98, markerPosition));
+			burglaryMarker.style.left = `${Math.max(0, Math.min(98, markerPosition))}%`;
+			if (Date.now() - startedAt >= 6000) finishBurglaryAttempt(false);
+		}, 16)
+	};
+}
+
+function tryStealResidentMoney() {
+	if (!isInBurglaryHouse || !burglaryTable || !activeBurglaryHouse) return false;
+	const tablePosition = new THREE.Vector3();
+	burglaryTable.getWorldPosition(tablePosition);
+	if (player.position.distanceTo(tablePosition) > 5) {
+		showMessage('Gehe näher an den Tisch.', 1500);
+		return true;
+	}
+	const amount = getResidentMoney(activeBurglaryHouse);
+	if (amount <= 0) {
+		showMessage('Hier ist kein Geld mehr.', 2000);
+		return true;
+	}
+	money += amount;
+	residentMoney[activeBurglaryHouse.label] = 0;
+	moneySpan.textContent = `Geld: ${money} €`;
+	saveData();
+	showMessage(`${amount}€ vom Tisch genommen. Verschwinde schnell!`, 3000);
+	return true;
+}
+
+cancelBurglaryBtn.addEventListener('click', () => {
+	if (!burglaryAttempt) return;
+	clearInterval(burglaryAttempt.interval);
+	burglaryAttempt = null;
+	burglaryPanel.style.display = 'none';
+	activeBurglaryHouse = null;
+});
 
 function createParkAtmRoom() {
 	if (parkAtmRoom) return;
@@ -6831,7 +6984,15 @@ testPoliceCarsBtn.addEventListener('click', () => runBankRobberyAction(testPolic
 testFootPoliceBtn.addEventListener('click', () => runBankRobberyAction(testFootPolice));
 
 document.addEventListener('keydown', e => {
+	if (burglaryAttempt && e.code === 'Space') {
+		e.preventDefault();
+		const isSuccess = burglaryAttempt.markerPosition >= burglaryAttempt.targetStart &&
+			burglaryAttempt.markerPosition <= burglaryAttempt.targetStart + 22;
+		finishBurglaryAttempt(isSuccess);
+		return;
+	}
 	if (e.key.toLowerCase() === 'e') {
+		if (isInBurglaryHouse && tryStealResidentMoney()) return;
 		if (isInCasino && tryOpenCasinoTable()) return;
 		if (isInParkAtmRoom && tryOpenParkAtm()) return;
 		if (isInMysteryBasement) {
@@ -6923,6 +7084,10 @@ document.addEventListener('keydown', e => {
 	}
 	}
 	if (e.key.toLowerCase() === 'r') {
+		if (isInBurglaryHouse) {
+			exitBurglaryHouse();
+			return;
+		}
 		if (isInCasino) {
 			exitCasino();
 			return;
@@ -6950,6 +7115,15 @@ document.addEventListener('keydown', e => {
 		if (!isInVehicle && Math.hypot(player.position.x - casinoPosition.x, player.position.z - casinoPosition.z) < 20) {
 			enterCasino();
 			return;
+		}
+		if (!isInVehicle) {
+			const nearbyResidence = buildings.find(building =>
+				building.label.startsWith('Wohnhaus') && Math.hypot(player.position.x - building.x, player.position.z - building.z) < 16
+			);
+			if (nearbyResidence) {
+				startBurglaryAttempt(nearbyResidence);
+				return;
+			}
 		}
 		// Dialog mit NPC starten, wenn nahe genug
 	}

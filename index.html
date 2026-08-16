@@ -125,6 +125,13 @@
 		<p class="casinoHint">Glücksrad: 0€, Einsatz zurück oder 3x Gewinn. Würfel: 4-6 gewinnt doppelt.</p>
 		<button id="closeCasinoBtn" type="button">Schließen</button>
 	</div>
+	<div id="burglaryPanel" style="display: none;" aria-label="Einbruch">
+		<h3>Türschloss knacken</h3>
+		<p>Drücke die Leertaste im grünen Bereich.</p>
+		<div id="burglaryMeter"><div id="burglaryTarget"></div><div id="burglaryMarker"></div></div>
+		<p id="burglaryStatus">Bereit</p>
+		<button id="cancelBurglaryBtn" type="button">Abbrechen</button>
+	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
 		<h3>AUFZUG</h3>
@@ -305,6 +312,6 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js?v=20260816-expanded-city"></script>
+	<script src="script.js?v=20260816-burglary"></script>
 </body>
 </html>

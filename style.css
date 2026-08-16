@@ -642,6 +642,25 @@ h1 {
 #casinoPanel button { padding: 8px 10px; border: 0; border-radius: 4px; background: #a32d4f; color: #fff; cursor: pointer; }
 #casinoPanel button.selected { outline: 2px solid #ffd970; background: #c94868; }
 .casinoHint { color: #ead9b4; font-size: 0.82rem; line-height: 1.4; }
+#burglaryPanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 1300;
+	width: min(340px, calc(100vw - 36px));
+	padding: 18px;
+	border: 1px solid #d6a642;
+	border-radius: 7px;
+	background: rgba(20, 18, 14, 0.97);
+	color: #fff;
+	text-align: center;
+}
+#burglaryPanel h3, #burglaryPanel p { margin: 0 0 12px; }
+#burglaryMeter { position: relative; height: 20px; overflow: hidden; border: 1px solid #cfb879; border-radius: 4px; background: #542630; }
+#burglaryTarget { position: absolute; top: 0; bottom: 0; width: 22%; background: #4da96a; }
+#burglaryMarker { position: absolute; top: -4px; bottom: -4px; width: 5px; background: #fff; box-shadow: 0 0 8px #fff; }
+#cancelBurglaryBtn { padding: 8px 12px; border: 0; border-radius: 4px; background: #8f3a3a; color: #fff; cursor: pointer; }
 #speedDisplay {
 	font-size: 1.2em;
 	font-weight: bold;
