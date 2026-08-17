@@ -1450,6 +1450,11 @@ h1 {
 	font: bold 0.9rem Arial, sans-serif;
 	touch-action: manipulation;
 }
+	#mobileInteractBtn, #mobileReceptionBtn, #mobilePhoneBtn {
+	min-width: 56px;
+	min-height: 42px;
+	padding: 7px;
+	}
 	#mobilePunchBtn {
 	background: rgba(132, 59, 47, 0.9) !important;
 	}
