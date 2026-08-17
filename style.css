@@ -329,9 +329,9 @@ h1 {
 	pointer-events: auto;
 }
 .mobile-controls-enabled #mobileActionButtons button {
-	min-width: 76px;
-	min-height: 52px;
-	padding: 10px;
+	min-width: 62px;
+	min-height: 44px;
+	padding: 8px;
 	border: 1px solid rgba(255, 255, 255, 0.55);
 	border-radius: 8px;
 	background: rgba(27, 64, 88, 0.88);
