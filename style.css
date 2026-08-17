@@ -1510,6 +1510,19 @@ h1 {
 	max-height: 62vh;
 	overflow-y: auto;
 	}
+	#shopPanel, #carDealerPanel, #fashionShopPanel, #tuningShopPanel {
+	position: fixed;
+	inset: 0;
+	transform: none;
+	width: auto;
+	max-width: none;
+	max-height: none;
+	min-width: 0;
+	padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+	border-radius: 0;
+	overflow-y: auto;
+	z-index: 1400;
+	}
 	#fullMapPanel { inset: 10px; padding: 10px; }
 	#fullMapCanvas canvas { width: min(100%, calc(100vh - 102px)); height: min(100%, calc(100vh - 102px)); }
 	#taxiDestinationPanel, #taxiPaymentPanel { box-sizing: border-box; width: min(92vw, 400px); }
