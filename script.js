@@ -56,6 +56,12 @@ const startGameBtn = document.getElementById('startGameBtn');
 const playerNameInput = document.getElementById('playerNameInput');
 const roomCodeInput = document.getElementById('roomCodeInput');
 const liveRoomsList = document.getElementById('liveRoomsList');
+const profileName = document.getElementById('profileName');
+const friendNameInput = document.getElementById('friendNameInput');
+const addFriendBtn = document.getElementById('addFriendBtn');
+const friendStatus = document.getElementById('friendStatus');
+const friendsList = document.getElementById('friendsList');
+const profilePreview = document.getElementById('profilePreview');
 const multiplayerStatus = document.getElementById('multiplayerStatus');
 const multiplayerRoomLabel = document.getElementById('multiplayerRoomLabel');
 const multiplayerPlayerLabel = document.getElementById('multiplayerPlayerLabel');
@@ -3615,6 +3621,17 @@ function setupStartScreen() {
 	roomCodeInput.value = Math.random().toString(36).slice(2, 8).toUpperCase();
 	startMoney.textContent = `Geld: ${money} €`;
 	connectToLobby();
+	playerNameInput.addEventListener('change', registerCurrentProfile);
+	addFriendBtn.addEventListener('click', () => {
+		const friendName = friendNameInput.value.trim();
+		if (!friendName) {
+			friendStatus.textContent = 'Bitte gib einen Spielernamen ein.';
+			return;
+		}
+		registerCurrentProfile();
+		lobbySocket?.emit('add-friend', { playerName: friendName });
+		friendNameInput.value = '';
+	});
 	deviceModeBtn.addEventListener('click', () => {
 		phoneMode = !phoneMode;
 		deviceModeBtn.textContent = phoneMode ? '📱' : '💻';
@@ -3752,17 +3769,82 @@ function renderLiveRooms(rooms) {
 	});
 }
 
+function currentPlayerName() {
+	return playerNameInput.value.trim().slice(0, 16) || 'Spieler';
+}
+
+function formatLastSeen(timestamp) {
+	if (!timestamp) return 'Noch nie online';
+	const minutes = Math.max(1, Math.floor((Date.now() - timestamp) / 60000));
+	if (minutes < 60) return `Zuletzt online vor ${minutes} Min.`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `Zuletzt online vor ${hours} Std.`;
+	return `Zuletzt online vor ${Math.floor(hours / 24)} Tagen`;
+}
+
+function showProfilePreview(profile) {
+	profilePreview.hidden = false;
+	profilePreview.replaceChildren();
+	const name = document.createElement('strong');
+	name.textContent = profile.name;
+	const presence = document.createElement('span');
+	presence.textContent = profile.online ? 'Online' : formatLastSeen(profile.lastSeen);
+	presence.className = profile.online ? 'friendPresence' : 'friendPresence offline';
+	profilePreview.append(name, presence);
+}
+
+function renderOwnProfile(profile) {
+	profileName.textContent = profile.name;
+	friendsList.replaceChildren();
+	if (!profile.friends.length) {
+		friendsList.textContent = 'Noch keine Freunde hinzugefuegt.';
+		return;
+	}
+	profile.friends.forEach(friend => {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'friendProfileButton';
+		const name = document.createElement('span');
+		name.textContent = friend.name;
+		const presence = document.createElement('span');
+		presence.textContent = friend.online ? 'Online' : formatLastSeen(friend.lastSeen);
+		presence.className = friend.online ? 'friendPresence' : 'friendPresence offline';
+		button.append(name, presence);
+		button.addEventListener('click', () => lobbySocket?.emit('get-profile', { playerName: friend.name }));
+		friendsList.appendChild(button);
+	});
+}
+
+function registerCurrentProfile() {
+	if (lobbySocket?.connected) lobbySocket.emit('register-profile', { playerName: currentPlayerName() });
+}
+
+const multiplayerServerUrl = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+	? window.location.origin
+	: 'https://free-city.onrender.com';
+
 function connectToLobby() {
 	if (typeof window.io !== 'function') {
 		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
 		return;
 	}
-	lobbySocket = window.io('https://free-city.onrender.com', {
+	lobbySocket = window.io(multiplayerServerUrl, {
 		transports: ['polling'],
 		upgrade: false
 	});
-	lobbySocket.on('connect', () => lobbySocket.emit('get-rooms'));
+	lobbySocket.on('connect', () => {
+		lobbySocket.emit('get-rooms');
+		registerCurrentProfile();
+	});
 	lobbySocket.on('rooms-updated', renderLiveRooms);
+	lobbySocket.on('profile-data', data => {
+		if (data.own) {
+			renderOwnProfile(data.profile);
+			friendStatus.textContent = '';
+		} else showProfilePreview(data.profile);
+	});
+	lobbySocket.on('profile-error', message => { friendStatus.textContent = message; });
+	lobbySocket.on('profiles-updated', () => lobbySocket.emit('get-profile', { playerName: currentPlayerName() }));
 	lobbySocket.on('connect_error', () => {
 		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
 	});
@@ -3780,7 +3862,7 @@ function connectToMultiplayerRoom() {
 		return;
 	}
 
-	multiplayerSocket = lobbySocket || window.io('https://free-city.onrender.com', {
+	multiplayerSocket = lobbySocket || window.io(multiplayerServerUrl, {
 		transports: ['polling'],
 		upgrade: false
 	});

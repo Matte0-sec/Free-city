@@ -34,28 +34,62 @@ h1 {
 	inset: 0;
 	z-index: 2000;
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 20px;
-	background: rgba(9, 14, 20, 0.82);
+	padding: 0;
+	background: #0b151d;
 }
 #startPanel {
 	box-sizing: border-box;
-	width: min(92vw, 340px);
-	max-height: calc(100vh - 40px);
-	padding: 22px;
-	border: 1px solid #7492a7;
-	border-radius: 8px;
-	background: rgba(27, 39, 51, 0.97);
-	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+	width: 100%;
+	min-height: 100%;
+	padding: clamp(24px, 5vw, 68px);
+	background: linear-gradient(135deg, #0d202a 0%, #152e3c 52%, #183649 100%);
 	color: #fff;
-	text-align: center;
+	text-align: left;
 	overflow-y: auto;
 }
+#startHeader {
+	display: flex;
+	align-items: end;
+	justify-content: space-between;
+	gap: 24px;
+	max-width: 1120px;
+	margin: 0 auto 34px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid rgba(183, 219, 238, 0.24);
+}
+.startEyebrow {
+	margin: 0 0 5px;
+	color: #8bb5ca;
+	font-size: 0.82rem;
+	font-weight: bold;
+	letter-spacing: 0;
+	text-transform: uppercase;
+}
 #startPanel h2 {
+	margin: 0;
+	color: #d6ebf7;
+	font-size: clamp(2rem, 4vw, 3.4rem);
+}
+#startMenuContent {
+	display: grid;
+	grid-template-columns: minmax(230px, 0.9fr) minmax(200px, 0.7fr) minmax(250px, 0.9fr);
+	gap: 20px;
+	max-width: 1120px;
+	margin: 0 auto;
+}
+.startMenuSection {
+	padding: 20px;
+	border: 1px solid rgba(154, 200, 224, 0.3);
+	border-radius: 7px;
+	background: rgba(8, 20, 29, 0.58);
+}
+.startMenuSection h3, .startMenuSection h4 {
 	margin: 0 0 12px;
 	color: #d6ebf7;
-	font-size: 1.35rem;
+}
+.startMenuSection h4 {
+	margin-top: 20px;
+	font-size: 0.88rem;
 }
 #startCharacterPreview {
 	width: 180px;
@@ -72,7 +106,7 @@ h1 {
 	height: 100%;
 }
 #startMoney {
-	margin: 13px 0;
+	margin: 0;
 	color: #a6e7ae;
 	font-weight: bold;
 }
@@ -95,9 +129,8 @@ h1 {
 	font: inherit;
 }
 #liveRooms {
-	margin: 12px 0;
-	padding-top: 10px;
-	border-top: 1px solid rgba(173, 212, 235, 0.22);
+	margin: 0;
+	padding-top: 20px;
 	text-align: left;
 }
 #liveRooms h3 {
@@ -1552,4 +1585,55 @@ h1 {
 }
 #closeCarDealer:hover {
 	background: #d32f2f;
+}
+#profileName {
+	margin: 0 0 16px;
+	color: #a6e7ae;
+	font-size: 1.15rem;
+	font-weight: bold;
+}
+#friendStatus {
+	min-height: 1.2em;
+	margin: 9px 0 0;
+	color: #b9cad6;
+	font-size: 0.8rem;
+}
+#friendsList {
+	display: grid;
+	gap: 7px;
+	max-height: 210px;
+	overflow-y: auto;
+	color: #b9cad6;
+	font-size: 0.85rem;
+}
+.friendProfileButton {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 9px;
+	border: 1px solid #55758a;
+	border-radius: 4px;
+	background: #213946;
+	color: #fff;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.friendProfileButton:hover { background: #2e5365; }
+.friendPresence { color: #a6e7ae; font-size: 0.76rem; }
+.friendPresence.offline { color: #b9cad6; }
+#profilePreview {
+	display: grid;
+	gap: 4px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(173, 212, 235, 0.22);
+}
+@media (max-width: 760px) {
+	#startPanel { padding: 22px 16px; }
+	#startHeader { align-items: start; margin-bottom: 20px; }
+	#startMenuContent { grid-template-columns: 1fr; }
+	#startCharacterPreview { width: 150px; height: 150px; }
 }

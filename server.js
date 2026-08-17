@@ -12,6 +12,8 @@ const io = new Server(server, {
   }
 });
 const rooms = new Map();
+const profiles = new Map();
+const profileSockets = new Map();
 const maxPlayersPerRoom = 2;
 
 app.use(express.static(__dirname));
@@ -33,14 +35,94 @@ function broadcastLiveRooms() {
 	io.emit('rooms-updated', getLiveRooms());
 }
 
+function profileKey(name) {
+	return name.toLocaleLowerCase('de-DE');
+}
+
+function getOrCreateProfile(name) {
+	const key = profileKey(name);
+	if (!profiles.has(key)) profiles.set(key, { name, friends: [], lastSeen: Date.now() });
+	return profiles.get(key);
+}
+
+function serializeProfile(profile) {
+	return {
+		name: profile.name,
+		online: (profileSockets.get(profileKey(profile.name))?.size || 0) > 0,
+		lastSeen: profile.lastSeen,
+		friends: profile.friends.map(friendKey => {
+			const friend = profiles.get(friendKey);
+			return friend
+				? { name: friend.name, online: (profileSockets.get(friendKey)?.size || 0) > 0, lastSeen: friend.lastSeen }
+				: { name: friendKey, online: false, lastSeen: null };
+		})
+	};
+}
+
+function registerProfile(socket, rawName) {
+	const name = sanitizeText(rawName, 'Spieler', 16);
+	if (socket.profileKey === profileKey(name)) return getOrCreateProfile(name);
+	if (socket.profileKey) unregisterProfile(socket);
+	const profile = getOrCreateProfile(name);
+	const key = profileKey(profile.name);
+	if (!profileSockets.has(key)) profileSockets.set(key, new Set());
+	profileSockets.get(key).add(socket.id);
+	socket.profileKey = key;
+	io.emit('profiles-updated');
+	return profile;
+}
+
+function unregisterProfile(socket) {
+	if (!socket.profileKey) return;
+	const connections = profileSockets.get(socket.profileKey);
+	connections?.delete(socket.id);
+	if (!connections?.size) {
+		profileSockets.delete(socket.profileKey);
+		const profile = profiles.get(socket.profileKey);
+		if (profile) profile.lastSeen = Date.now();
+	}
+	socket.profileKey = null;
+	io.emit('profiles-updated');
+}
+
 io.on('connection', socket => {
 	let roomCode = null;
 	socket.emit('rooms-updated', getLiveRooms());
 	socket.on('get-rooms', () => socket.emit('rooms-updated', getLiveRooms()));
+	socket.on('register-profile', data => {
+		const profile = registerProfile(socket, data?.playerName);
+		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
+	});
+	socket.on('get-profile', data => {
+		const name = sanitizeText(data?.playerName, '', 16);
+		const profile = profiles.get(profileKey(name));
+		if (profile) socket.emit('profile-data', { profile: serializeProfile(profile), own: socket.profileKey === profileKey(profile.name) });
+		else socket.emit('profile-error', 'Dieses Profil wurde noch nicht erstellt.');
+	});
+	socket.on('add-friend', data => {
+		if (!socket.profileKey) {
+			socket.emit('profile-error', 'Bitte lege zuerst dein Profil an.');
+			return;
+		}
+		const friendName = sanitizeText(data?.playerName, '', 16);
+		const friend = profiles.get(profileKey(friendName));
+		const profile = profiles.get(socket.profileKey);
+		if (!friend) {
+			socket.emit('profile-error', 'Dieser Spieler hat noch kein Profil.');
+			return;
+		}
+		if (profileKey(friend.name) === socket.profileKey) {
+			socket.emit('profile-error', 'Du kannst dich nicht selbst hinzufuegen.');
+			return;
+		}
+		if (!profile.friends.includes(profileKey(friend.name))) profile.friends.push(profileKey(friend.name));
+		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
+	});
 
 	socket.on('join-room', data => {
 		const requestedRoom = sanitizeText(data?.roomCode, '', 12).toUpperCase();
 		const playerName = sanitizeText(data?.playerName, 'Spieler', 16);
+		registerProfile(socket, playerName);
 		if (!requestedRoom) {
 			socket.emit('room-error', 'Bitte gib einen Raumcode ein.');
 			return;
@@ -83,14 +165,16 @@ io.on('connection', socket => {
 	});
 
 	socket.on('disconnect', () => {
-		if (!roomCode || !rooms.has(roomCode)) return;
-		const room = rooms.get(roomCode);
-		const playerIndex = room.findIndex(player => player.id === socket.id);
-		if (playerIndex !== -1) room.splice(playerIndex, 1);
-		io.to(roomCode).emit('player-left', { id: socket.id });
-		if (room.length === 0) rooms.delete(roomCode);
-		else io.to(roomCode).emit('room-count', room.length);
-		broadcastLiveRooms();
+		if (roomCode && rooms.has(roomCode)) {
+			const room = rooms.get(roomCode);
+			const playerIndex = room.findIndex(player => player.id === socket.id);
+			if (playerIndex !== -1) room.splice(playerIndex, 1);
+			io.to(roomCode).emit('player-left', { id: socket.id });
+			if (room.length === 0) rooms.delete(roomCode);
+			else io.to(roomCode).emit('room-count', room.length);
+			broadcastLiveRooms();
+		}
+		unregisterProfile(socket);
 	});
 });
 

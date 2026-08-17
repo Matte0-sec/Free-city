@@ -13,24 +13,45 @@
 	<div id="gameContainer"></div>
 	<div id="startOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
 		<section id="startPanel">
-			<h2 id="startTitle">Free City 3D</h2>
-			<div id="startCharacterPreview" aria-label="Dein Charakter"></div>
-			<p id="startMoney">Geld: 0 €</p>
-			<div id="deviceMode">
-				<button id="deviceModeBtn" type="button" aria-label="Spielgerät wechseln" title="Spielgerät wechseln">💻</button>
-				<span id="deviceModeLabel">Computer-Steuerung</span>
+			<header id="startHeader">
+				<div>
+					<p class="startEyebrow">Willkommen in</p>
+					<h2 id="startTitle">Free City 3D</h2>
+				</div>
+				<p id="startMoney">Geld: 0 €</p>
+			</header>
+			<div id="startMenuContent">
+				<section class="startMenuSection" aria-label="Spiel starten">
+					<div id="startCharacterPreview" aria-label="Dein Charakter"></div>
+					<div id="deviceMode">
+						<button id="deviceModeBtn" type="button" aria-label="Spielgerät wechseln" title="Spielgerät wechseln">💻</button>
+						<span id="deviceModeLabel">Computer-Steuerung</span>
+					</div>
+					<label class="multiplayerField" for="playerNameInput">Dein Name
+						<input id="playerNameInput" type="text" value="Spieler" maxlength="16" autocomplete="nickname">
+					</label>
+					<label class="multiplayerField" for="roomCodeInput">Privater Raumcode
+						<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
+					</label>
+					<button id="startGameBtn" type="button">Spiel starten</button>
+				</section>
+				<section id="liveRooms" class="startMenuSection" aria-labelledby="liveRoomsTitle">
+					<h3 id="liveRoomsTitle">Live-Raeume</h3>
+					<div id="liveRoomsList" aria-live="polite">Raeume werden geladen...</div>
+				</section>
+				<section id="profilePanel" class="startMenuSection" aria-labelledby="profileTitle">
+					<h3 id="profileTitle">Spielerprofil</h3>
+					<p id="profileName">Spieler</p>
+					<label class="multiplayerField" for="friendNameInput">Freund hinzufuegen
+						<input id="friendNameInput" type="text" maxlength="16" autocomplete="off" placeholder="Spielername">
+					</label>
+					<button id="addFriendBtn" type="button">Freund adden</button>
+					<p id="friendStatus" aria-live="polite"></p>
+					<h4>Freunde</h4>
+					<div id="friendsList" aria-live="polite">Noch keine Freunde hinzugefuegt.</div>
+					<div id="profilePreview" hidden aria-live="polite"></div>
+				</section>
 			</div>
-			<label class="multiplayerField" for="playerNameInput">Dein Name
-				<input id="playerNameInput" type="text" value="Spieler" maxlength="16" autocomplete="nickname">
-			</label>
-			<label class="multiplayerField" for="roomCodeInput">Privater Raumcode
-				<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
-			</label>
-			<section id="liveRooms" aria-labelledby="liveRoomsTitle">
-				<h3 id="liveRoomsTitle">Live-Raeume</h3>
-				<div id="liveRoomsList" aria-live="polite">Raeume werden geladen...</div>
-			</section>
-			<button id="startGameBtn" type="button">Spiel starten</button>
 		</section>
 	</div>
 	<div id="multiplayerStatus" style="display: none;">
