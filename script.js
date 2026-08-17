@@ -5466,67 +5466,82 @@ function exitMysteryBasement() {
 	showMessage('Du bist aus dem Keller heraus.', 2000);
 }
 
-function createPlayerHouseInterior() {
-	if (playerHouseInterior) return;
+function createPlayerHouseInterior(house) {
+	if (playerHouseInterior?.parent) playerHouseInterior.parent.remove(playerHouseInterior);
+	const interiorSizes = {
+		cottage: { width: 18, depth: 14, height: 6.5 },
+		default: { width: 28, depth: 22, height: 8 },
+		villa: { width: 42, depth: 34, height: 10 },
+		modern: { width: 52, depth: 42, height: 12 }
+	};
+	const size = interiorSizes[house.userData.houseType] || interiorSizes.default;
+	const halfWidth = size.width / 2;
+	const halfDepth = size.depth / 2;
 	const room = new THREE.Group();
 	room.position.set(playerHouseInteriorPosition.x, playerHouseInteriorPosition.y, playerHouseInteriorPosition.z);
-	const floor = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 20), new THREE.MeshPhongMaterial({ color: 0x8a6b50 }));
+	room.userData.size = size;
+	const floor = new THREE.Mesh(new THREE.BoxGeometry(size.width, 0.4, size.depth), new THREE.MeshPhongMaterial({ color: 0x8a6b50 }));
 	room.add(floor);
 	const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xe4dccd });
 	const walls = [
-		{ size: [24, 8, 0.4], position: [0, 4, -10] },
-		{ size: [24, 8, 0.4], position: [0, 4, 10] },
-		{ size: [0.4, 8, 20], position: [-12, 4, 0] },
-		{ size: [0.4, 8, 20], position: [12, 4, 0] }
+		{ size: [size.width, size.height, 0.4], position: [0, size.height / 2, -halfDepth] },
+		{ size: [size.width, size.height, 0.4], position: [0, size.height / 2, halfDepth] },
+		{ size: [0.4, size.height, size.depth], position: [-halfWidth, size.height / 2, 0] },
+		{ size: [0.4, size.height, size.depth], position: [halfWidth, size.height / 2, 0] }
 	];
 	walls.forEach(wall => {
 		const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), wallMaterial);
 		mesh.position.set(...wall.position);
 		room.add(mesh);
 	});
-	const ceilingLight = new THREE.PointLight(0xffefd2, 1.1, 28);
-	ceilingLight.position.set(0, 6.5, 0);
+	const ceilingLight = new THREE.PointLight(0xffefd2, 1.1, Math.max(size.width, size.depth) * 1.4);
+	ceilingLight.position.set(0, size.height - 1, 0);
 	room.add(ceilingLight);
 
 	const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(7, 0.8, 4), new THREE.MeshPhongMaterial({ color: 0x5d3a22 }));
-	bedFrame.position.set(-6, 1, -5);
+	bedFrame.position.set(-halfWidth + 5, 1, -halfDepth + 4);
 	room.add(bedFrame);
 	const mattress = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.65, 3.6), new THREE.MeshPhongMaterial({ color: 0x7aa6ce }));
-	mattress.position.set(-6, 1.7, -5);
+	mattress.position.set(-halfWidth + 5, 1.7, -halfDepth + 4);
 	mattress.userData.isPlayerHouseBed = true;
 	room.add(mattress);
 	playerHouseBed = mattress;
 	const pillow = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 3), new THREE.MeshPhongMaterial({ color: 0xf2f2ed }));
-	pillow.position.set(-8.2, 2.15, -5);
+	pillow.position.set(-halfWidth + 2.8, 2.15, -halfDepth + 4);
 	room.add(pillow);
 
 	const tvStand = new THREE.Mesh(new THREE.BoxGeometry(5, 1.6, 1.6), new THREE.MeshPhongMaterial({ color: 0x3a2a20 }));
-	tvStand.position.set(7, 0.9, -6.5);
+	tvStand.position.set(halfWidth - 4, 0.9, -halfDepth + 3.5);
 	room.add(tvStand);
 	const tv = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.8, 0.35), new THREE.MeshPhongMaterial({ color: 0x151b22, emissive: 0x152b3d }));
-	tv.position.set(7, 3, -6.5);
+	tv.position.set(halfWidth - 4, 3, -halfDepth + 3.5);
 	room.add(tv);
 
-	[-2.2, 2.2].forEach(x => {
+	[-2.2, 2.2].forEach(offsetX => {
 		const chair = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.8, 1.4), new THREE.MeshPhongMaterial({ color: 0x70482c }));
-		chair.position.set(x, 0.9, 3);
+		chair.position.set(offsetX, 0.9, 3);
 		room.add(chair);
 	});
 	const table = new THREE.Mesh(new THREE.BoxGeometry(6, 0.45, 3.2), new THREE.MeshPhongMaterial({ color: 0x96613b }));
 	table.position.set(0, 2, 3);
 	room.add(table);
+	if (size.width >= 40) {
+		const sofa = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 3), new THREE.MeshPhongMaterial({ color: 0x4f6f89 }));
+		sofa.position.set(0, 1.2, halfDepth - 4);
+		room.add(sofa);
+	}
 
 	scene.add(room);
 	playerHouseInterior = room;
 }
 
 function enterPlayerHouse(house) {
-	createPlayerHouseInterior();
+	createPlayerHouseInterior(house);
 	activePlayerHouse = house;
 	isInPlayerHouseInterior = true;
 	isLyingInPlayerHouse = false;
 	player.rotation.set(0, 0, 0);
-	player.position.set(playerHouseInteriorPosition.x, 0, playerHouseInteriorPosition.z + 7);
+	player.position.set(playerHouseInteriorPosition.x, 0, playerHouseInteriorPosition.z + playerHouseInterior.userData.size.depth / 2 - 3);
 	showMessage('Willkommen zuhause. Drücke E am Bett zum Hinlegen, R zum Verlassen.', 3500);
 }
 
