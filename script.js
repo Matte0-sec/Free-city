@@ -101,6 +101,11 @@ const taxiMapBtn = document.getElementById('taxiMapBtn');
 const taxiPaymentPanel = document.getElementById('taxiPaymentPanel');
 const taxiPaymentStatus = document.getElementById('taxiPaymentStatus');
 const payTaxiBtn = document.getElementById('payTaxiBtn');
+const tuningShopPanel = document.getElementById('tuningShopPanel');
+const closeTuningShopBtn = document.getElementById('closeTuningShopBtn');
+const tuningShopStatus = document.getElementById('tuningShopStatus');
+const tuningCarSelect = document.getElementById('tuningCarSelect');
+const tuningPartsList = document.getElementById('tuningPartsList');
 let unreadChatMessages = 0;
 
 function getGameData(key) {
@@ -624,6 +629,13 @@ let playerHealth = parseInt(getGameData('playerHealth')) || 100;
 
 // Fahrzeug-System
 let ownedCars = JSON.parse(getGameData('ownedCars')) || [];
+let tuningParts = JSON.parse(getGameData('tuningParts')) || [];
+let foundTuningParts = JSON.parse(getGameData('foundTuningParts')) || [];
+const tuningCatalog = {
+	chip: { name: 'Leistungs-Chip', price: 18000, description: '+15% Hoechstgeschwindigkeit', speed: 0.15 },
+	turbo: { name: 'Renn-Turbo', price: 42000, description: '+30% Hoechstgeschwindigkeit und Beschleunigung', speed: 0.3, acceleration: 0.3 },
+	tires: { name: 'Sportreifen', price: 26000, description: '+25% Lenkpraezision', handling: 0.25 }
+};
 const airfieldSpawnPositions = {
 	helicopter: { x: 500, z: 520, rotation: Math.PI / 2 },
 	airplane: { x: 540, z: 520, rotation: Math.PI / 2 }
@@ -710,6 +722,91 @@ function getVehicleReverseSpeed(vehicleType) {
 			return -1.2; // Standard rückwärts
 	}
 }
+
+function getVehicleTuning(vehicle) {
+	const carData = ownedCars.find(car => car.id === vehicle?.userData?.id);
+	const installed = carData?.tuning || [];
+	return installed.reduce((bonus, partId) => {
+		const part = tuningCatalog[partId];
+		if (!part) return bonus;
+		bonus.speed += part.speed || 0;
+		bonus.acceleration += part.acceleration || 0;
+		bonus.handling += part.handling || 0;
+		return bonus;
+	}, { speed: 0, acceleration: 0, handling: 0 });
+}
+
+function renderTuningShop(selectedCarId = tuningCarSelect.value) {
+	tuningCarSelect.replaceChildren();
+	const tunableCars = ownedCars.filter(car => car.type !== 'helicopter' && car.type !== 'airplane');
+	if (!tunableCars.length) {
+		tuningShopStatus.textContent = 'Du brauchst zuerst ein eigenes Auto aus dem Autohaus.';
+		tuningPartsList.replaceChildren();
+		return;
+	}
+	tunableCars.forEach(car => {
+		const option = document.createElement('option');
+		option.value = car.id;
+		option.textContent = car.name;
+		tuningCarSelect.appendChild(option);
+	});
+	const selectedCar = tunableCars.find(car => String(car.id) === String(selectedCarId)) || tunableCars[0];
+	tuningCarSelect.value = selectedCar.id;
+	tuningShopStatus.textContent = `Teile im Lager: ${tuningParts.length}. Kaufe teuer oder finde Teile in versteckten Raeumen.`;
+	tuningPartsList.replaceChildren();
+	Object.entries(tuningCatalog).forEach(([partId, part]) => {
+		const installed = selectedCar.tuning?.includes(partId);
+		const ownedIndex = tuningParts.indexOf(partId);
+		const row = document.createElement('div');
+		row.className = 'tuningPart';
+		const details = document.createElement('div');
+		details.innerHTML = `<strong>${part.name}</strong><small>${part.description} | ${part.price} Euro</small>`;
+		const button = document.createElement('button');
+		if (installed) {
+			button.textContent = 'Montiert';
+			button.disabled = true;
+		} else if (ownedIndex >= 0) {
+			button.textContent = 'Montieren';
+			button.addEventListener('click', () => {
+				selectedCar.tuning = selectedCar.tuning || [];
+				selectedCar.tuning.push(partId);
+				tuningParts.splice(ownedIndex, 1);
+				saveVehicleData();
+				saveData();
+				renderTuningShop();
+				showMessage(`${part.name} montiert.`, 2500);
+			});
+		} else {
+			button.textContent = 'Kaufen';
+			button.addEventListener('click', () => {
+				if (money < part.price) {
+					showMessage(`Zu wenig Geld! Du brauchst ${part.price} Euro.`, 2500);
+					return;
+				}
+				money -= part.price;
+				moneySpan.textContent = `Geld: ${money} €`;
+				tuningParts.push(partId);
+				saveData();
+				renderTuningShop();
+				showMessage(`${part.name} gekauft. Jetzt montieren.`, 2500);
+			});
+		}
+		row.append(details, button);
+		tuningPartsList.appendChild(row);
+	});
+}
+
+function openTuningShop() {
+	if (isInVehicle) {
+		showMessage('Steige erst aus deinem Auto aus.', 2000);
+		return;
+	}
+	renderTuningShop();
+	tuningShopPanel.style.display = 'block';
+}
+
+closeTuningShopBtn.addEventListener('click', () => { tuningShopPanel.style.display = 'none'; });
+tuningCarSelect.addEventListener('change', () => renderTuningShop(tuningCarSelect.value));
 
 // Quest-System
 let activeQuests = [];
@@ -1007,6 +1104,8 @@ function saveData() {
 	setGameData('parkAtmLastPayoutAt', parkAtmLastPayoutAt);
 	setGameData('jobEarnings', JSON.stringify(jobEarnings || {}));
 	setGameData('ownedHouses', JSON.stringify(ownedHouses));
+	setGameData('tuningParts', JSON.stringify(tuningParts));
+	setGameData('foundTuningParts', JSON.stringify(foundTuningParts));
 	houseBought = ownedHouses.length > 0;
 	setGameData('houseBought', houseBought);
 }
@@ -2123,6 +2222,7 @@ const buildings = [
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
 	{ x: 0, z: -260, color: 0x336666, label: 'Bahnhof', houseType: 'flat' },
 	{ x: -80, z: 200, color: 0xFF6B35, label: 'Autohaus', houseType: 'flat' },
+	{ x: 300, z: 140, color: 0xd95f2d, label: 'Tuningwerkstatt', houseType: 'modern' },
 	{ x: -300, z: -80, color: 0x8c2d51, label: 'Casino', houseType: 'modern' },
 	{ x: 0, z: -80, color: 0xd84d86, label: 'Modeshop', houseType: 'flat' },
 	{ x: 360, z: -340, color: 0x9c88ff, label: 'Wohnhaus A', houseType: 'flat' },
@@ -5824,6 +5924,13 @@ function collectMysteryBox() {
 	}
 	money += 10000;
 	moneySpan.textContent = `Geld: ${money} €`;
+	if (!foundTuningParts.includes('mystery-basement')) {
+		const partIds = Object.keys(tuningCatalog);
+		const partId = partIds[Math.floor(Math.random() * partIds.length)];
+		tuningParts.push(partId);
+		foundTuningParts.push('mystery-basement');
+		showMessage(`Verstecktes Tuningteil gefunden: ${tuningCatalog[partId].name}!`, 3500);
+	}
 	mysteryBoxRewardCooldown = now + 250;
 	saveData();
 	showMessage('10000€ gefunden!', 2000);
@@ -6473,7 +6580,7 @@ function updateVehicleMovement() {
 
 	// Eingabe verarbeiten
 	if (keys['w'] || keys['arrowup']) {
-		targetSpeed = getVehicleMaxSpeed(currentVehicleType); // Vorwärts basierend auf Fahrzeugtyp
+		targetSpeed = getVehicleMaxSpeed(currentVehicleType) * (1 + getVehicleTuning(currentVehicle).speed);
 	}
 	if (keys['s'] || keys['arrowdown']) {
 		targetSpeed = getVehicleReverseSpeed(currentVehicleType); // Rückwärts basierend auf Fahrzeugtyp
@@ -6506,6 +6613,8 @@ function updateVehicleMovement() {
 		acceleration = 0.08; // Langsamere Beschleunigung für schwere Fahrzeuge (erhöht von 0.05)
 		deceleration = 0.06; // Langsamere Bremsung für schwere Fahrzeuge (erhöht von 0.03)
 	}
+	const tuningBonus = getVehicleTuning(currentVehicle);
+	acceleration *= 1 + tuningBonus.acceleration;
 
 	if (targetSpeed > vehicleSpeed) {
 		vehicleSpeed += acceleration;
@@ -6523,7 +6632,7 @@ function updateVehicleMovement() {
 	}
 
 	// Geschwindigkeitsabhängige Lenkung
-	const steeringSensitivity = Math.max(0.3, 1 - Math.abs(vehicleSpeed) * 0.5);
+	const steeringSensitivity = Math.max(0.3, 1 - Math.abs(vehicleSpeed) * 0.5) * (1 + tuningBonus.handling);
 	const actualRotation = targetRotation * steeringSensitivity;
 
 	// Flüssige Drehung
@@ -7245,6 +7354,10 @@ document.addEventListener('keydown', e => {
 	}
 	if (e.key.toLowerCase() === 'e') {
 		if (enterTaxi()) return;
+		if (!isInVehicle && Math.hypot(player.position.x - 300, player.position.z - 140) < 20) {
+			openTuningShop();
+			return;
+		}
 		if (isInBurglaryHouse && tryStealResidentMoney()) return;
 		if (isInCasino && tryOpenCasinoTable()) return;
 		if (isInParkAtmRoom && tryOpenParkAtm()) return;

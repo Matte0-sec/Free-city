@@ -758,6 +758,32 @@ h1 {
 #taxiDestinationPanel button, #taxiPaymentPanel button { padding: 9px 11px; border: 0; border-radius: 4px; background: #b58520; color: #fff; cursor: pointer; }
 #taxiMapBtn { width: 100%; }
 #taxiPaymentStatus, #taxiDestinationStatus { color: #ead9a3; line-height: 1.35; }
+#tuningShopPanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 1450;
+	width: min(430px, calc(100vw - 36px));
+	max-height: min(620px, calc(100vh - 36px));
+	overflow-y: auto;
+	padding: 18px;
+	border: 1px solid #d4672c;
+	border-radius: 7px;
+	background: rgba(29, 22, 19, 0.98);
+	color: #fff;
+}
+.tuningHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tuningHeader h3, #tuningShopStatus { margin: 0 0 12px; }
+.tuningHeader button, .tuningPart button { border: 0; border-radius: 4px; color: #fff; cursor: pointer; }
+.tuningHeader button { width: 30px; height: 30px; background: #664033; }
+#tuningCarSelect { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #9a7059; border-radius: 4px; }
+#tuningPartsList { display: grid; gap: 8px; margin-top: 12px; }
+.tuningPart { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid #704b3b; border-radius: 5px; background: rgba(255,255,255,0.05); }
+.tuningPart strong, .tuningPart small { display: block; }
+.tuningPart small { margin-top: 3px; color: #e7bea7; }
+.tuningPart button { padding: 8px 10px; background: #b75725; }
+.tuningPart button:disabled { background: #5c4a43; cursor: default; }
 #speedDisplay {
 	font-size: 1.2em;
 	font-weight: bold;
@@ -1487,6 +1513,7 @@ h1 {
 	#fullMapPanel { inset: 10px; padding: 10px; }
 	#fullMapCanvas canvas { width: min(100%, calc(100vh - 102px)); height: min(100%, calc(100vh - 102px)); }
 	#taxiDestinationPanel, #taxiPaymentPanel { box-sizing: border-box; width: min(92vw, 400px); }
+	#tuningShopPanel { box-sizing: border-box; width: min(92vw, 430px); }
 	#dialogPanel {
 	bottom: 145px;
 	}

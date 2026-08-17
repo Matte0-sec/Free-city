@@ -4,7 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 	<title>Free City 3D</title>
-	<link rel="stylesheet" href="style.css?v=20260816-taxi">
+	<link rel="stylesheet" href="style.css?v=20260817-tuning">
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
 	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
@@ -168,6 +168,15 @@
 		<h3>Taxi angekommen</h3>
 		<p id="taxiPaymentStatus"></p>
 		<button id="payTaxiBtn" type="button">Bezahlen</button>
+	</div>
+	<div id="tuningShopPanel" style="display: none;" aria-label="Tuningwerkstatt">
+		<div class="tuningHeader">
+			<h3>Tuningwerkstatt</h3>
+			<button id="closeTuningShopBtn" type="button" aria-label="Werkstatt schließen">X</button>
+		</div>
+		<p id="tuningShopStatus">Waehle ein eigenes Auto zum Tunen.</p>
+		<select id="tuningCarSelect" aria-label="Auto auswaehlen"></select>
+		<div id="tuningPartsList"></div>
 	</div>
 	<div id="messageBox" style="display: none;"></div>
 	<div id="prisonElevatorPanel" style="display: none;" aria-label="Aufzug im Gefängnis">
@@ -349,6 +358,6 @@
 		</div>
 		<button id="closeBankRobbery">Schließen</button>
 	</div>
-	<script src="script.js?v=20260816-taxi"></script>
+	<script src="script.js?v=20260817-tuning"></script>
 </body>
 </html>
