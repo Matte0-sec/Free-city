@@ -4282,41 +4282,6 @@ function animate() {
 	cameraTarget.z = pz;
 	camera.lookAt(cameraTarget);
 
-	// Shop öffnen, wenn nahe am Supermarkt
-	const market = { x: 80, z: -80 };
-	const distToMarket = Math.sqrt(
-		Math.pow(player.position.x - market.x, 2) +
-		Math.pow(player.position.z - (market.z + 10.3), 2)
-	);
-	if (distToMarket < 10) {
-		shopPanel.style.display = 'block';
-	} else {
-		shopPanel.style.display = 'none';
-	}
-
-	// Autohändler öffnen, wenn nahe am Autohaus
-	const carDealer = { x: -80, z: 200 };
-	const distToCarDealer = Math.sqrt(
-		Math.pow(player.position.x - carDealer.x, 2) +
-		Math.pow(player.position.z - (carDealer.z + 10.3), 2)
-	);
-	if (distToCarDealer < 10) {
-		carDealerPanel.style.display = 'block';
-	} else {
-		carDealerPanel.style.display = 'none';
-	}
-
-	const fashionShop = { x: 0, z: -80 };
-	const distToFashionShop = Math.sqrt(
-		Math.pow(player.position.x - fashionShop.x, 2) +
-		Math.pow(player.position.z - (fashionShop.z + 10.3), 2)
-	);
-	if (distToFashionShop < 10) {
-		fashionShopPanel.style.display = 'block';
-	} else {
-		fashionShopPanel.style.display = 'none';
-	}
-
 	// Vögel animieren
 	for (const bird of birds) {
 		const data = bird.userData;
@@ -7369,6 +7334,18 @@ document.addEventListener('keydown', e => {
 	}
 	if (e.key.toLowerCase() === 'e') {
 		if (enterTaxi()) return;
+		if (!isInVehicle && Math.hypot(player.position.x - 80, player.position.z + 80) < 20) {
+			shopPanel.style.display = 'block';
+			return;
+		}
+		if (!isInVehicle && Math.hypot(player.position.x + 80, player.position.z - 200) < 20) {
+			carDealerPanel.style.display = 'block';
+			return;
+		}
+		if (!isInVehicle && Math.hypot(player.position.x, player.position.z + 80) < 20) {
+			fashionShopPanel.style.display = 'block';
+			return;
+		}
 		if (!isInVehicle && Math.hypot(player.position.x - 300, player.position.z - 140) < 20) {
 			openTuningShop();
 			return;
