@@ -897,6 +897,16 @@ if (npcBankMoney < 1000) {
 let houseBought = getGameData('houseBought') === 'true';
 let ownedHouses = JSON.parse(getGameData('ownedHouses')) || [];
 let playerHouses = [];
+let ownedProperties = JSON.parse(getGameData('ownedProperties') || '[]');
+let realEstateDay = Number(getGameData('realEstateDay')) || 0;
+let realEstateActiveDay = Number(getGameData('realEstateActiveDay')) || -1;
+
+const realEstateCatalog = [
+	{ id: 'apartment-a', buildingLabel: 'Immobilie A', name: 'Wohnanlage A', price: 4500000, dailyIncome: 50000 },
+	{ id: 'apartment-b', buildingLabel: 'Immobilie B', name: 'Wohnanlage B', price: 5200000, dailyIncome: 60000 },
+	{ id: 'apartment-c', buildingLabel: 'Immobilie C', name: 'Wohnanlage C', price: 5800000, dailyIncome: 70000 },
+	{ id: 'apartment-d', buildingLabel: 'Immobilie D', name: 'Wohnanlage D', price: 6400000, dailyIncome: 80000 }
+];
 
 const housePlots = [
 	{ x: -260, z: 260, name: 'Grundstück 1' },
@@ -1110,6 +1120,9 @@ function saveData() {
 	setGameData('parkAtmLastPayoutAt', parkAtmLastPayoutAt);
 	setGameData('jobEarnings', JSON.stringify(jobEarnings || {}));
 	setGameData('ownedHouses', JSON.stringify(ownedHouses));
+	setGameData('ownedProperties', JSON.stringify(ownedProperties));
+	setGameData('realEstateDay', realEstateDay);
+	setGameData('realEstateActiveDay', realEstateActiveDay);
 	setGameData('tuningParts', JSON.stringify(tuningParts));
 	setGameData('foundTuningParts', JSON.stringify(foundTuningParts));
 	houseBought = ownedHouses.length > 0;
@@ -1122,6 +1135,116 @@ function showMessage(text, duration = 3000) {
 	setTimeout(() => {
 		messageBox.style.display = 'none';
 	}, duration);
+}
+
+let realEstatePanel = null;
+
+function formatEuro(amount) {
+	return `${amount.toLocaleString('de-DE')} €`;
+}
+
+function ownsProperty(propertyId) {
+	return ownedProperties.includes(propertyId);
+}
+
+function ensureRealEstatePanel() {
+	if (realEstatePanel) return;
+	realEstatePanel = document.createElement('div');
+	realEstatePanel.id = 'realEstatePanel';
+	realEstatePanel.style.cssText = `
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		z-index: 1500;
+		width: min(420px, calc(100vw - 32px));
+		transform: translate(-50%, -50%);
+		padding: 22px;
+		border: 1px solid #78a7bf;
+		border-radius: 7px;
+		background: rgba(16, 35, 47, 0.98);
+		box-shadow: 0 14px 38px rgba(0, 0, 0, 0.62);
+		color: #fff;
+		text-align: left;
+	`;
+	document.body.appendChild(realEstatePanel);
+}
+
+function closeRealEstatePanel() {
+	if (realEstatePanel) realEstatePanel.style.display = 'none';
+}
+
+function openRealEstateAnalysis(property) {
+	ensureRealEstatePanel();
+	const owned = ownsProperty(property.id);
+	const salePrice = Math.floor(property.price * 0.75);
+	realEstatePanel.replaceChildren();
+	const title = document.createElement('h2');
+	title.textContent = property.name;
+	const summary = document.createElement('p');
+	summary.textContent = owned ? 'Deine Immobilie erzielt automatisch Einnahmen.' : 'Immobilienanalyse';
+	const facts = document.createElement('div');
+	facts.innerHTML = `
+		<p>Kaufpreis: <strong>${formatEuro(property.price)}</strong></p>
+		<p>Ertrag pro Tag: <strong>${formatEuro(property.dailyIncome)}</strong></p>
+		<p>Ertrag pro Woche: <strong>${formatEuro(property.dailyIncome * 7)}</strong></p>
+		<p>${owned ? `Verkaufswert: <strong>${formatEuro(salePrice)}</strong>` : 'Die Auszahlung erfolgt nur an Tagen, an denen du mindestens einmal online warst.'}</p>
+	`;
+	const actionButton = document.createElement('button');
+	actionButton.type = 'button';
+	actionButton.textContent = owned ? `Für ${formatEuro(salePrice)} verkaufen` : `Für ${formatEuro(property.price)} kaufen`;
+	actionButton.addEventListener('click', () => {
+		if (owned) {
+			if (!window.confirm(`${property.name} für ${formatEuro(salePrice)} verkaufen?`)) return;
+			ownedProperties = ownedProperties.filter(id => id !== property.id);
+			money += salePrice;
+			moneySpan.textContent = `Geld: ${money} €`;
+			saveData();
+			closeRealEstatePanel();
+			showMessage(`${property.name} verkauft: +${formatEuro(salePrice)}`, 3000);
+			return;
+		}
+		if (money < property.price) {
+			showMessage(`Du brauchst ${formatEuro(property.price)} für diese Immobilie.`, 3000);
+			return;
+		}
+		ownedProperties.push(property.id);
+		money -= property.price;
+		moneySpan.textContent = `Geld: ${money} €`;
+		saveData();
+		closeRealEstatePanel();
+		showMessage(`${property.name} gekauft. Tagesertrag: ${formatEuro(property.dailyIncome)}.`, 3500);
+	});
+	const closeButton = document.createElement('button');
+	closeButton.type = 'button';
+	closeButton.textContent = 'Schließen';
+	closeButton.style.marginLeft = '8px';
+	closeButton.addEventListener('click', closeRealEstatePanel);
+	realEstatePanel.append(title, summary, facts, actionButton, closeButton);
+	realEstatePanel.style.display = 'block';
+}
+
+function tryOpenNearbyRealEstate() {
+	if (isInVehicle) return false;
+	const property = realEstateCatalog.find(entry => {
+		const building = buildings.find(candidate => candidate.label === entry.buildingLabel);
+		return building && Math.hypot(player.position.x - building.x, player.position.z - building.z) < 20;
+	});
+	if (!property) return false;
+	openRealEstateAnalysis(property);
+	return true;
+}
+
+function payRealEstateIncomeForDay() {
+	if (realEstateActiveDay !== realEstateDay || ownedProperties.length === 0) return;
+	const income = ownedProperties.reduce((total, propertyId) => {
+		const property = realEstateCatalog.find(entry => entry.id === propertyId);
+		return total + (property?.dailyIncome || 0);
+	}, 0);
+	if (!income) return;
+	money += income;
+	moneySpan.textContent = `Geld: ${money} €`;
+	saveData();
+	showMessage(`Immobilieneinnahmen: +${formatEuro(income)}`, 3500);
 }
 
 function getAspect() {
@@ -2231,10 +2354,10 @@ const buildings = [
 	{ x: 300, z: 140, color: 0xd95f2d, label: 'Tuningwerkstatt', houseType: 'modern' },
 	{ x: -300, z: -80, color: 0x8c2d51, label: 'Casino', houseType: 'modern' },
 	{ x: 0, z: -80, color: 0xd84d86, label: 'Modeshop', houseType: 'flat' },
-	{ x: 360, z: -340, color: 0x9c88ff, label: 'Wohnhaus A', houseType: 'flat' },
-	{ x: 420, z: -140, color: 0x7ed6df, label: 'Wohnhaus B', houseType: 'colonial' },
-	{ x: 340, z: 260, color: 0xf6e58d, label: 'Wohnhaus C', houseType: 'default' },
-	{ x: -360, z: -340, color: 0xffbe76, label: 'Wohnhaus D', houseType: 'flat' },
+	{ x: 360, z: -340, color: 0x9c88ff, label: 'Immobilie A', houseType: 'flat' },
+	{ x: 420, z: -140, color: 0x7ed6df, label: 'Immobilie B', houseType: 'colonial' },
+	{ x: 340, z: 260, color: 0xf6e58d, label: 'Immobilie C', houseType: 'default' },
+	{ x: -360, z: -340, color: 0xffbe76, label: 'Immobilie D', houseType: 'flat' },
 	{ x: -420, z: 120, color: 0x95afc0, label: 'Wohnhaus E', houseType: 'default' },
 	{ x: -320, z: 300, color: 0xeb4d4b, label: 'Wohnhaus F', houseType: 'modern' },
 	{ x: 260, z: 380, color: 0x6ab04c, label: 'Wohnhaus G', houseType: 'flat' },
@@ -3643,6 +3766,7 @@ function setupStartScreen() {
 		document.body.classList.toggle('mobile-controls-enabled', phoneMode);
 		if (phoneMode) initializeMobileInputs();
 		isGameSessionActive = true;
+		realEstateActiveDay = realEstateDay;
 		parkAtmLastPayoutAt = Date.now();
 		saveData();
 		startOverlay.style.display = 'none';
@@ -4466,6 +4590,10 @@ function updateTime() {
 	
 	// 24-Stunden-Zyklus (1440 Minuten)
 	if (gameTime >= 1440) {
+		payRealEstateIncomeForDay();
+		realEstateDay += 1;
+		if (isGameSessionActive) realEstateActiveDay = realEstateDay;
+		saveData();
 		gameTime = 0;
 	}
 	
@@ -7416,6 +7544,7 @@ document.addEventListener('keydown', e => {
 	}
 	if (e.key.toLowerCase() === 'e') {
 		if (enterTaxi()) return;
+		if (tryOpenNearbyRealEstate()) return;
 		if (!isInVehicle && Math.hypot(player.position.x - 80, player.position.z + 80) < 20) {
 			shopPanel.style.display = 'block';
 			return;
