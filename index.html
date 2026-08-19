@@ -34,6 +34,7 @@
 						<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
 					</label>
 					<button id="startGameBtn" type="button">Spiel starten</button>
+					<button id="tutorialBtn" type="button">Tutorial</button>
 				</section>
 				<section id="liveRooms" class="startMenuSection" aria-labelledby="liveRoomsTitle">
 					<h3 id="liveRoomsTitle">Live-Raeume</h3>
@@ -57,6 +58,34 @@
 					<ol id="leaderboardList" aria-live="polite">
 						<li>Rangliste wird geladen...</li>
 					</ol>
+				</section>
+			</div>
+		</section>
+		<section id="tutorialDialog" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" hidden>
+			<div class="tutorialHeader">
+				<h2 id="tutorialTitle">Willkommen in Free City</h2>
+				<button id="closeTutorialBtn" type="button" aria-label="Tutorial schließen">X</button>
+			</div>
+			<div class="tutorialContent">
+				<section>
+					<h3>Steuerung</h3>
+					<p>Bewege dich mit W, A, S und D oder den Pfeiltasten. Mit der Maus drehst du die Kamera. Drücke E für Gebäude, Fahrzeuge und Aktionen, R zum Verlassen und H für dein Handy.</p>
+				</section>
+				<section>
+					<h3>Geld verdienen</h3>
+					<p>Besuche das Jobcenter für Aufträge. Im Supermarkt kaufst du Essen, bei der Bank kannst du Geld einzahlen und abheben. Autos, Häuser und Kleidung findest du in den Geschäften der Stadt.</p>
+				</section>
+				<section>
+					<h3>Immobilien</h3>
+					<p>Bei Immobilien A bis D öffnet E eine Analyse. Sie zeigt Kaufpreis sowie Tages- und Wochengewinn. Eigentum bringt am Tagesende Geld, wenn du an diesem Tag mindestens einmal gespielt hast.</p>
+				</section>
+				<section>
+					<h3>Verkehr und Stadt</h3>
+					<p>Die Autos fahren auf den Straßen, beachten Spuren und Ampeln. Nutze die Karte, um Orte wie Bank, Autohaus, Casino, Park oder Tuningwerkstatt schnell zu finden.</p>
+				</section>
+				<section>
+					<h3>Freunde und Multiplayer</h3>
+					<p>Wähle einen Namen und Raumcode. Im Profil kannst du Freunde hinzufügen und ihren Online-Status sehen. Die Rangliste zeigt die reichsten bekannten Spieler nach Bargeld und Bankguthaben.</p>
 				</section>
 			</div>
 		</section>

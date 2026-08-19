@@ -53,6 +53,9 @@ const startMoney = document.getElementById('startMoney');
 const deviceModeBtn = document.getElementById('deviceModeBtn');
 const deviceModeLabel = document.getElementById('deviceModeLabel');
 const startGameBtn = document.getElementById('startGameBtn');
+const tutorialBtn = document.getElementById('tutorialBtn');
+const tutorialDialog = document.getElementById('tutorialDialog');
+const closeTutorialBtn = document.getElementById('closeTutorialBtn');
 const playerNameInput = document.getElementById('playerNameInput');
 const roomCodeInput = document.getElementById('roomCodeInput');
 const liveRoomsList = document.getElementById('liveRoomsList');
@@ -3919,6 +3922,8 @@ function setupStartScreen() {
 	roomCodeInput.value = Math.random().toString(36).slice(2, 8).toUpperCase();
 	startMoney.textContent = `Geld: ${money} €`;
 	connectToLobby();
+	tutorialBtn.addEventListener('click', () => { tutorialDialog.hidden = false; });
+	closeTutorialBtn.addEventListener('click', () => { tutorialDialog.hidden = true; });
 	playerNameInput.addEventListener('change', registerCurrentProfile);
 	addFriendBtn.addEventListener('click', () => {
 		const friendName = friendNameInput.value.trim();
