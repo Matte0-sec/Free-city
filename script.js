@@ -886,6 +886,15 @@ let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 
 let hunger = Math.max(0, Math.min(100, Number(getGameData('hunger')) || 100));
 let foodInventory = JSON.parse(getGameData('foodInventory') || '{"apple":0,"bread":0,"drink":0}');
 foodInventory.prisonFreeCard = Number(foodInventory.prisonFreeCard) || 0;
+let weaponInventory = JSON.parse(getGameData('weaponInventory') || '{"pistol":0,"shotgun":0}');
+weaponInventory.pistol = Number(weaponInventory.pistol) || 0;
+weaponInventory.shotgun = Number(weaponInventory.shotgun) || 0;
+let selectedWeaponId = getGameData('selectedWeaponId') || '';
+let weaponLastUsedAt = 0;
+const weaponCatalog = [
+	{ id: 'pistol', name: 'Pistole', price: 1500, ammoPrice: 250, ammoPerPack: 12, range: 48, cooldown: 450 },
+	{ id: 'shotgun', name: 'Schrotflinte', price: 4500, ammoPrice: 420, ammoPerPack: 6, range: 26, cooldown: 850 }
+];
 let residentMoney = JSON.parse(getGameData('residentMoney') || '{}');
 let lastHungerUpdate = Date.now();
 let lastStarvationDamage = 0;
@@ -1119,6 +1128,8 @@ function saveData() {
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
 	setGameData('foodInventory', JSON.stringify(foodInventory));
+	setGameData('weaponInventory', JSON.stringify(weaponInventory));
+	setGameData('selectedWeaponId', selectedWeaponId);
 	setGameData('residentMoney', JSON.stringify(residentMoney));
 	setGameData('parkAtmActivated', parkAtmActivated);
 	setGameData('parkAtmLastPayoutAt', parkAtmLastPayoutAt);
@@ -2529,6 +2540,7 @@ const buildings = [
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
 	{ x: 0, z: -260, color: 0x336666, label: 'Bahnhof', houseType: 'flat' },
 	{ x: -80, z: 200, color: 0xFF6B35, label: 'Autohaus', houseType: 'flat' },
+	{ x: -260, z: -140, color: 0x4b5563, label: 'Waffenladen', houseType: 'flat' },
 	{ x: 300, z: 140, color: 0xd95f2d, label: 'Tuningwerkstatt', houseType: 'modern' },
 	{ x: -300, z: -80, color: 0x8c2d51, label: 'Casino', houseType: 'modern' },
 	{ x: 0, z: -80, color: 0xd84d86, label: 'Modeshop', houseType: 'flat' },
@@ -3835,6 +3847,7 @@ const mobileJoystickKnob = document.getElementById('mobileJoystickKnob');
 const mobileInteractBtn = document.getElementById('mobileInteractBtn');
 const mobileReceptionBtn = document.getElementById('mobileReceptionBtn');
 const mobilePhoneBtn = document.getElementById('mobilePhoneBtn');
+const mobileWeaponBtn = document.getElementById('mobileWeaponBtn');
 const mobilePunchBtn = document.getElementById('mobilePunchBtn');
 let mobileJoystickPointerId = null;
 let mobileCameraPointer = null;
@@ -3907,6 +3920,7 @@ function initializeMobileInputs() {
 	mobileInteractBtn.addEventListener('click', () => triggerMobileKey('e'));
 	mobileReceptionBtn.addEventListener('click', () => triggerMobileKey('r'));
 	mobilePhoneBtn.addEventListener('click', togglePhone);
+	mobileWeaponBtn.addEventListener('click', useSelectedWeapon);
 	mobilePunchBtn.addEventListener('pointerdown', event => {
 		if (!mobileControlsEnabled) return;
 		event.preventDefault();
@@ -4942,6 +4956,120 @@ function renderInventory() {
 	});
 	cardEntry.appendChild(useCardButton);
 	inventoryItems.appendChild(cardEntry);
+	weaponCatalog.forEach(weapon => {
+		const entry = document.createElement('div');
+		entry.className = 'inventoryItem';
+		const owned = selectedWeaponId === weapon.id;
+		entry.textContent = `${weapon.name}: ${weaponInventory[weapon.id]} Munition${owned ? ' (ausgerüstet)' : ''}`;
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.textContent = owned ? 'Ausgerüstet' : 'Ausrüsten';
+		button.disabled = weaponInventory[weapon.id] <= 0;
+		button.addEventListener('click', () => {
+			selectedWeaponId = weapon.id;
+			saveData();
+			renderInventory();
+			showMessage(`${weapon.name} ausgerüstet. Benutze F zum Schießen.`, 2500);
+		});
+		entry.appendChild(button);
+		inventoryItems.appendChild(entry);
+	});
+}
+
+let weaponShopPanel = null;
+
+function ensureWeaponShopPanel() {
+	if (weaponShopPanel) return;
+	weaponShopPanel = document.createElement('div');
+	weaponShopPanel.id = 'weaponShopPanel';
+	weaponShopPanel.innerHTML = `
+		<div class="weaponShopHeader"><h2>Waffenladen</h2><button id="closeWeaponShop" type="button" aria-label="Waffenladen schließen">X</button></div>
+		<p>Wähle eine Spielwaffe oder kaufe Munition nach.</p>
+		<div id="weaponShopList"></div>
+	`;
+	document.body.appendChild(weaponShopPanel);
+	weaponShopPanel.querySelector('#closeWeaponShop').addEventListener('click', () => { weaponShopPanel.style.display = 'none'; });
+}
+
+function renderWeaponShop() {
+	ensureWeaponShopPanel();
+	const list = weaponShopPanel.querySelector('#weaponShopList');
+	list.replaceChildren();
+	weaponCatalog.forEach(weapon => {
+		const card = document.createElement('section');
+		card.className = 'weaponShopCard';
+		const owned = weaponInventory[weapon.id] > 0 || selectedWeaponId === weapon.id;
+		card.innerHTML = `<h3>${weapon.name}</h3><p>Reichweite: ${weapon.range} m</p><p>Munition: ${weaponInventory[weapon.id]}</p>`;
+		const buyButton = document.createElement('button');
+		buyButton.type = 'button';
+		buyButton.textContent = owned ? `Munition (${weapon.ammoPerPack}) - ${weapon.ammoPrice} €` : `Kaufen - ${weapon.price} €`;
+		buyButton.addEventListener('click', () => {
+			const price = owned ? weapon.ammoPrice : weapon.price;
+			if (money < price) {
+				showMessage(`Du brauchst ${price} € dafür.`, 2500);
+				return;
+			}
+			money -= price;
+			weaponInventory[weapon.id] += owned ? weapon.ammoPerPack : weapon.ammoPerPack;
+			if (!selectedWeaponId) selectedWeaponId = weapon.id;
+			moneySpan.textContent = `Geld: ${money} €`;
+			saveData();
+			renderWeaponShop();
+			renderInventory();
+			showMessage(owned ? `${weapon.ammoPerPack} Schuss Munition gekauft.` : `${weapon.name} gekauft und ausgerüstet.`, 2500);
+		});
+		card.appendChild(buyButton);
+		list.appendChild(card);
+	});
+	weaponShopPanel.style.display = 'block';
+}
+
+function useSelectedWeapon() {
+	if (isInVehicle || unconsciousUntil) return;
+	const weapon = weaponCatalog.find(entry => entry.id === selectedWeaponId);
+	if (!weapon) {
+		showMessage('Rüste im Inventar zuerst eine Waffe aus.', 2200);
+		return;
+	}
+	if (weaponInventory[weapon.id] <= 0) {
+		showMessage(`${weapon.name}: keine Munition.`, 2200);
+		return;
+	}
+	if (Date.now() - weaponLastUsedAt < weapon.cooldown) return;
+	weaponLastUsedAt = Date.now();
+	weaponInventory[weapon.id] -= 1;
+	const direction = { x: Math.sin(player.rotation.y), z: Math.cos(player.rotation.y) };
+	let hitIndex = -1;
+	let hitDistance = weapon.range;
+	npcs.forEach((npc, index) => {
+		const offsetX = npc.position.x - player.position.x;
+		const offsetZ = npc.position.z - player.position.z;
+		const distance = Math.hypot(offsetX, offsetZ);
+		if (!distance || distance > hitDistance) return;
+		if ((offsetX / distance) * direction.x + (offsetZ / distance) * direction.z < 0.78) return;
+		hitIndex = index;
+		hitDistance = distance;
+	});
+	const endX = player.position.x + direction.x * hitDistance;
+	const endZ = player.position.z + direction.z * hitDistance;
+	const tracer = new THREE.Line(
+		new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(player.position.x, 2.8, player.position.z), new THREE.Vector3(endX, 2.8, endZ)]),
+		new THREE.LineBasicMaterial({ color: 0xffd25a })
+	);
+	scene.add(tracer);
+	setTimeout(() => scene.remove(tracer), 80);
+	if (hitIndex >= 0) {
+		const target = npcs[hitIndex];
+		npcIsFalling[hitIndex] = true;
+		npcFallTime[hitIndex] = Date.now();
+		npcTargets[hitIndex] = { x: target.position.x + direction.x * 20, z: target.position.z + direction.z * 20 };
+		if (hitIndex < 3) npcIsChasing[hitIndex] = true;
+		wantedLevel = Math.max(wantedLevel, 2);
+		policeAlert = true;
+		showMessage('Treffer. Die Polizei wurde alarmiert.', 2500);
+	} else showMessage(`${weapon.name} abgefeuert.`, 1200);
+	saveData();
+	renderInventory();
 }
 
 function startUnconsciousness() {
@@ -7751,6 +7879,11 @@ document.addEventListener('keydown', e => {
 		if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') togglePhone();
 		return;
 	}
+	if (e.key.toLowerCase() === 'f' && !e.repeat) {
+		const activeTag = document.activeElement?.tagName;
+		if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') useSelectedWeapon();
+		return;
+	}
 	if (e.key.toLowerCase() === 'e') {
 		if (enterTaxi()) return;
 		if (tryOpenNearbyRealEstate()) return;
@@ -7760,6 +7893,10 @@ document.addEventListener('keydown', e => {
 		}
 		if (!isInVehicle && Math.hypot(player.position.x + 80, player.position.z - 200) < 20) {
 			carDealerPanel.style.display = 'block';
+			return;
+		}
+		if (!isInVehicle && Math.hypot(player.position.x + 260, player.position.z + 140) < 20) {
+			renderWeaponShop();
 			return;
 		}
 		if (!isInVehicle && Math.hypot(player.position.x, player.position.z + 80) < 20) {
