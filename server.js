@@ -35,13 +35,24 @@ function broadcastLiveRooms() {
 	io.emit('rooms-updated', getLiveRooms());
 }
 
+function getLeaderboard() {
+	return [...profiles.values()]
+		.sort((first, second) => second.netWorth - first.netWorth || first.name.localeCompare(second.name, 'de'))
+		.slice(0, 10)
+		.map(profile => ({ name: profile.name, netWorth: profile.netWorth }));
+}
+
+function broadcastLeaderboard() {
+	io.emit('leaderboard-updated', getLeaderboard());
+}
+
 function profileKey(name) {
 	return name.toLocaleLowerCase('de-DE');
 }
 
 function getOrCreateProfile(name) {
 	const key = profileKey(name);
-	if (!profiles.has(key)) profiles.set(key, { name, friends: [], lastSeen: Date.now() });
+	if (!profiles.has(key)) profiles.set(key, { name, friends: [], lastSeen: Date.now(), netWorth: 0 });
 	return profiles.get(key);
 }
 
@@ -92,7 +103,18 @@ io.on('connection', socket => {
 	socket.on('register-profile', data => {
 		const profile = registerProfile(socket, data?.playerName);
 		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
+		socket.emit('leaderboard-updated', getLeaderboard());
 	});
+	socket.on('update-wealth', data => {
+		if (!socket.profileKey) return;
+		const netWorth = Number(data?.netWorth);
+		if (!Number.isFinite(netWorth) || netWorth < 0 || netWorth > 1000000000000) return;
+		const profile = profiles.get(socket.profileKey);
+		if (!profile) return;
+		profile.netWorth = Math.floor(netWorth);
+		broadcastLeaderboard();
+	});
+	socket.on('get-leaderboard', () => socket.emit('leaderboard-updated', getLeaderboard()));
 	socket.on('get-profile', data => {
 		const name = sanitizeText(data?.playerName, '', 16);
 		const profile = profiles.get(profileKey(name));

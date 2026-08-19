@@ -1592,6 +1592,32 @@ h1 {
 	font-size: 1.15rem;
 	font-weight: bold;
 }
+.leaderboardHint {
+	margin: -4px 0 14px;
+	color: #b9cad6;
+	font-size: 0.82rem;
+}
+#leaderboardList {
+	display: grid;
+	gap: 7px;
+	margin: 0;
+	padding-left: 28px;
+	max-height: 260px;
+	overflow-y: auto;
+}
+#leaderboardList li {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 9px 7px;
+	border-bottom: 1px solid rgba(173, 212, 235, 0.16);
+	color: #dcecf7;
+}
+.leaderboardMoney {
+	color: #a6e7ae;
+	font-weight: bold;
+	white-space: nowrap;
+}
 #friendStatus {
 	min-height: 1.2em;
 	margin: 9px 0 0;

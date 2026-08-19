@@ -62,6 +62,7 @@ const addFriendBtn = document.getElementById('addFriendBtn');
 const friendStatus = document.getElementById('friendStatus');
 const friendsList = document.getElementById('friendsList');
 const profilePreview = document.getElementById('profilePreview');
+const leaderboardList = document.getElementById('leaderboardList');
 const multiplayerStatus = document.getElementById('multiplayerStatus');
 const multiplayerRoomLabel = document.getElementById('multiplayerRoomLabel');
 const multiplayerPlayerLabel = document.getElementById('multiplayerPlayerLabel');
@@ -1127,6 +1128,7 @@ function saveData() {
 	setGameData('foundTuningParts', JSON.stringify(foundTuningParts));
 	houseBought = ownedHouses.length > 0;
 	setGameData('houseBought', houseBought);
+	syncLeaderboardWealth();
 }
 
 function showMessage(text, duration = 3000) {
@@ -4070,6 +4072,34 @@ function currentPlayerName() {
 	return playerNameInput.value.trim().slice(0, 16) || 'Spieler';
 }
 
+function getTotalWealth() {
+	return Math.max(0, Math.floor(money + bankMoney));
+}
+
+function syncLeaderboardWealth() {
+	if (lobbySocket?.connected) lobbySocket.emit('update-wealth', { netWorth: getTotalWealth() });
+}
+
+function renderLeaderboard(entries) {
+	leaderboardList.replaceChildren();
+	if (!entries.length) {
+		const emptyEntry = document.createElement('li');
+		emptyEntry.textContent = 'Noch keine Spieler in der Rangliste.';
+		leaderboardList.appendChild(emptyEntry);
+		return;
+	}
+	entries.forEach(entry => {
+		const listEntry = document.createElement('li');
+		const name = document.createElement('span');
+		name.textContent = entry.name;
+		const wealth = document.createElement('span');
+		wealth.className = 'leaderboardMoney';
+		wealth.textContent = `${Number(entry.netWorth).toLocaleString('de-DE')} €`;
+		listEntry.append(name, wealth);
+		leaderboardList.appendChild(listEntry);
+	});
+}
+
 function formatLastSeen(timestamp) {
 	if (!timestamp) return 'Noch nie online';
 	const minutes = Math.max(1, Math.floor((Date.now() - timestamp) / 60000));
@@ -4132,8 +4162,10 @@ function connectToLobby() {
 	lobbySocket.on('connect', () => {
 		lobbySocket.emit('get-rooms');
 		registerCurrentProfile();
+		syncLeaderboardWealth();
 	});
 	lobbySocket.on('rooms-updated', renderLiveRooms);
+	lobbySocket.on('leaderboard-updated', renderLeaderboard);
 	lobbySocket.on('profile-data', data => {
 		if (data.own) {
 			renderOwnProfile(data.profile);
