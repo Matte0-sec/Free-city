@@ -1527,16 +1527,33 @@ function createStreet(x, z, width, length, rotation = 0) {
 	street.position.set(x, 0.01, z);
 	street.rotation.y = rotation;
 	scene.add(street);
+
+	const isHorizontal = width > length;
+	const roadLength = isHorizontal ? width : length;
+	const dashLength = 12;
+	const dashGap = 10;
+	const dashMaterial = new THREE.MeshPhongMaterial({ color: 0xf4d03f, emissive: 0x5a4b0d });
+	for (let offset = -roadLength / 2 + dashLength; offset < roadLength / 2; offset += dashLength + dashGap) {
+		const dash = new THREE.Mesh(
+			new THREE.BoxGeometry(isHorizontal ? dashLength : 0.45, 0.04, isHorizontal ? 0.45 : dashLength),
+			dashMaterial
+		);
+		dash.position.set(isHorizontal ? x + offset : x, 0.18, isHorizontal ? z : z + offset);
+		scene.add(dash);
+	}
 }
 
 // Hauptstraßen (horizontal und vertikal)
 // Autos
 const cars = [];
-const carSpeeds = [];
-const carDirections = [];
-const carIsHorizontal = [];
+const trafficLanes = [];
+const trafficIntersections = [];
+const TRAFFIC_LANE_OFFSET = 3;
+const TRAFFIC_LIGHT_CYCLE_MS = 14000;
+const TRAFFIC_LIGHT_GREEN_MS = 7000;
+const TRAFFIC_TURN_CHANCE = 0.32;
 
-function createCar(x, z, color = 0xff0000) {
+function createTrafficCar(x, z, color = 0xff0000) {
 	const car = new THREE.Group();
 	// Karosserie
 	const bodyGeo = new THREE.BoxGeometry(3, 1.2, 6);
@@ -1588,49 +1605,218 @@ function createCar(x, z, color = 0xff0000) {
 
 // Autos werden erst nach Straßendefinition platziert (siehe unten initCars())
 
+function createTrafficLane(street, axis, fixed, dir, min, max) {
+	return {
+		id: `${axis}-${street.x}-${street.z}-${dir}-${fixed}`,
+		streetCenter: axis === 'x' ? street.z : street.x,
+		axis,
+		fixed,
+		dir,
+		min,
+		max
+	};
+}
+
+function buildTrafficLanes() {
+	trafficLanes.length = 0;
+	for (const street of streets) {
+		if (street.width > street.length) {
+			const minX = street.x - street.width / 2 + 8;
+			const maxX = street.x + street.width / 2 - 8;
+			trafficLanes.push(createTrafficLane(street, 'x', street.z - TRAFFIC_LANE_OFFSET, 1, minX, maxX));
+			trafficLanes.push(createTrafficLane(street, 'x', street.z + TRAFFIC_LANE_OFFSET, -1, minX, maxX));
+		} else {
+			const minZ = street.z - street.length / 2 + 8;
+			const maxZ = street.z + street.length / 2 - 8;
+			trafficLanes.push(createTrafficLane(street, 'z', street.x - TRAFFIC_LANE_OFFSET, 1, minZ, maxZ));
+			trafficLanes.push(createTrafficLane(street, 'z', street.x + TRAFFIC_LANE_OFFSET, -1, minZ, maxZ));
+		}
+	}
+}
+
+function buildTrafficIntersections() {
+	trafficIntersections.length = 0;
+	const horizontalStreets = streets.filter(street => street.width > street.length);
+	const verticalStreets = streets.filter(street => street.length > street.width);
+	for (const horizontal of horizontalStreets) {
+		const minHX = horizontal.x - horizontal.width / 2;
+		const maxHX = horizontal.x + horizontal.width / 2;
+		for (const vertical of verticalStreets) {
+			const minVZ = vertical.z - vertical.length / 2;
+			const maxVZ = vertical.z + vertical.length / 2;
+			if (vertical.x >= minHX && vertical.x <= maxHX && horizontal.z >= minVZ && horizontal.z <= maxVZ) {
+				trafficIntersections.push({ x: vertical.x, z: horizontal.z });
+			}
+		}
+	}
+}
+
+function getTrafficLightPhaseOffset(x, z) {
+	const seed = Math.abs((Math.round(x) * 73856093) ^ (Math.round(z) * 19349663));
+	return seed % TRAFFIC_LIGHT_CYCLE_MS;
+}
+
+function isTrafficLightGreen(axis, x, z) {
+	const tick = (Date.now() + getTrafficLightPhaseOffset(x, z)) % TRAFFIC_LIGHT_CYCLE_MS;
+	const horizontalGreen = tick < TRAFFIC_LIGHT_GREEN_MS;
+	return axis === 'x' ? horizontalGreen : !horizontalGreen;
+}
+
+function getVehicleLaneCoordinate(vehicle) {
+	return vehicle.lane.axis === 'x' ? vehicle.mesh.position.x : vehicle.mesh.position.z;
+}
+
+function setVehicleLaneCoordinate(vehicle, value) {
+	if (vehicle.lane.axis === 'x') vehicle.mesh.position.x = value;
+	else vehicle.mesh.position.z = value;
+}
+
+function applyTrafficOrientation(vehicle) {
+	if (vehicle.lane.axis === 'x') vehicle.mesh.rotation.y = vehicle.lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+	else vehicle.mesh.rotation.y = vehicle.lane.dir > 0 ? Math.PI : 0;
+}
+
+function canSpawnTrafficCarOnLane(lane, lanePosition) {
+	for (const vehicle of cars) {
+		if (vehicle.lane.axis !== lane.axis || vehicle.lane.streetCenter !== lane.streetCenter) continue;
+		if (Math.abs(getVehicleLaneCoordinate(vehicle) - lanePosition) < 42) return false;
+	}
+	for (const intersection of trafficIntersections) {
+		const intersectionPosition = lane.axis === 'x' ? intersection.x : intersection.z;
+		const crossesThisRoad = lane.axis === 'x'
+			? Math.abs(intersection.z - lane.streetCenter) < 0.5
+			: Math.abs(intersection.x - lane.streetCenter) < 0.5;
+		if (crossesThisRoad && Math.abs(intersectionPosition - lanePosition) < 28) return false;
+	}
+	return true;
+}
+
+function spawnTrafficVehicle(lane, lanePosition) {
+	const palette = [0xe74c3c, 0xf39c12, 0x3498db, 0x2ecc71, 0x9b59b6, 0x1abc9c, 0xecf0f1];
+	const color = palette[Math.floor(Math.random() * palette.length)];
+	const mesh = createTrafficCar(
+		lane.axis === 'x' ? lanePosition : lane.fixed,
+		lane.axis === 'x' ? lane.fixed : lanePosition,
+		color
+	);
+	const vehicle = {
+		mesh,
+		lane,
+		speed: 0,
+		maxSpeed: 0.22 + Math.random() * 0.28,
+		lastTurnAt: 0
+	};
+	applyTrafficOrientation(vehicle);
+	cars.push(vehicle);
+}
+
+function getNextIntersectionOnLane(lane, position) {
+	let best = null;
+	let bestDistance = Infinity;
+	for (const intersection of trafficIntersections) {
+		if (lane.axis === 'x') {
+			if (Math.abs(intersection.z - lane.streetCenter) > 0.5) continue;
+			if (intersection.x < lane.min || intersection.x > lane.max) continue;
+			const distance = (intersection.x - position.x) * lane.dir;
+			if (distance > 0 && distance < bestDistance) {
+				best = intersection;
+				bestDistance = distance;
+			}
+		} else {
+			if (Math.abs(intersection.x - lane.streetCenter) > 0.5) continue;
+			if (intersection.z < lane.min || intersection.z > lane.max) continue;
+			const distance = (intersection.z - position.z) * lane.dir;
+			if (distance > 0 && distance < bestDistance) {
+				best = intersection;
+				bestDistance = distance;
+			}
+		}
+	}
+	if (!best) return null;
+	return { intersection: best, distance: bestDistance };
+}
+
+function getTurnLaneOptions(lane, intersection) {
+	if (lane.axis === 'x') {
+		return trafficLanes.filter(candidate =>
+			candidate.axis === 'z' &&
+			Math.abs(candidate.streetCenter - intersection.x) < 0.5 &&
+			intersection.z >= candidate.min &&
+			intersection.z <= candidate.max
+		);
+	}
+	return trafficLanes.filter(candidate =>
+		candidate.axis === 'x' &&
+		Math.abs(candidate.streetCenter - intersection.z) < 0.5 &&
+		intersection.x >= candidate.min &&
+		intersection.x <= candidate.max
+	);
+}
+
+function tryTurnVehicle(vehicle, intersection, now) {
+	if (Math.random() > TRAFFIC_TURN_CHANCE) return false;
+	const options = getTurnLaneOptions(vehicle.lane, intersection);
+	if (!options.length) return false;
+	const nextLane = options[Math.floor(Math.random() * options.length)];
+	vehicle.lane = nextLane;
+	if (nextLane.axis === 'x') {
+		vehicle.mesh.position.x = intersection.x;
+		vehicle.mesh.position.z = nextLane.fixed;
+	} else {
+		vehicle.mesh.position.x = nextLane.fixed;
+		vehicle.mesh.position.z = intersection.z;
+	}
+	vehicle.lastTurnAt = now;
+	applyTrafficOrientation(vehicle);
+	return true;
+}
+
+function getLeadingVehicleDistance(vehicle) {
+	let nearest = Infinity;
+	const lanePos = getVehicleLaneCoordinate(vehicle);
+	for (const other of cars) {
+		if (other === vehicle || other.lane.id !== vehicle.lane.id) continue;
+		const otherPos = getVehicleLaneCoordinate(other);
+		const distance = (otherPos - lanePos) * vehicle.lane.dir;
+		if (distance > 0 && distance < nearest) nearest = distance;
+	}
+	return nearest;
+}
+
 // Autos in Bewegung bringen
 function animateCars() {
-	// Autos fahren exakt auf den Straßen und wenden am Rand
-	for (let i = 0; i < cars.length; i++) {
-		const car = cars[i];
-		const speed = carSpeeds[i];
-		const dir = carDirections[i];
-		// Finde die Straße, auf der das Auto ist
-		let street = null;
-		// Horizontale Autos: gleiche z-Position wie Straße
-		if (carIsHorizontal[i]) {
-			for (const s of streets) {
-				if (Math.abs(car.position.z - s.z) < 2 && s.length > s.width) {
-					street = s;
-					break;
-				}
-			}
-			if (!street) continue;
-			car.position.x += speed * dir;
-			// Umdrehen am Rand der Straße
-			const minX = street.x - street.width / 2 + 1.5;
-			const maxX = street.x + street.width / 2 - 1.5;
-			if (car.position.x > maxX) carDirections[i] = -1;
-			if (car.position.x < minX) carDirections[i] = 1;
-			// Fixiere z auf Straßenmittelpunkt
-			car.position.z = street.z;
-		} else {
-			for (const s of streets) {
-				if (Math.abs(car.position.x - s.x) < 2 && s.width > s.length) {
-					street = s;
-					break;
-				}
-			}
-			if (!street) continue;
-			car.position.z += speed * dir;
-			// Umdrehen am Rand der Straße
-			const minZ = street.z - street.length / 2 + 1.5;
-			const maxZ = street.z + street.length / 2 - 1.5;
-			if (car.position.z > maxZ) carDirections[i] = -1;
-			if (car.position.z < minZ) carDirections[i] = 1;
-			// Fixiere x auf Straßenmittelpunkt
-			car.position.x = street.x;
+	const now = Date.now();
+	for (const vehicle of cars) {
+		const lanePosition = getVehicleLaneCoordinate(vehicle);
+		let targetSpeed = vehicle.maxSpeed;
+		const leadingDistance = getLeadingVehicleDistance(vehicle);
+		if (leadingDistance < 28) {
+			if (leadingDistance < 9) targetSpeed = 0;
+			else targetSpeed *= Math.max(0, (leadingDistance - 9) / 19);
 		}
+
+		const nextIntersection = getNextIntersectionOnLane(vehicle.lane, vehicle.mesh.position);
+		if (nextIntersection && nextIntersection.distance < 13) {
+			const hasGreen = isTrafficLightGreen(vehicle.lane.axis, nextIntersection.intersection.x, nextIntersection.intersection.z);
+			if (!hasGreen && nextIntersection.distance < 6.5) targetSpeed = 0;
+			if (hasGreen && nextIntersection.distance < 1.1 && now - vehicle.lastTurnAt > 2600) {
+				tryTurnVehicle(vehicle, nextIntersection.intersection, now);
+			}
+		}
+
+		const acceleration = targetSpeed > vehicle.speed ? 0.05 : 0.18;
+		vehicle.speed += (targetSpeed - vehicle.speed) * acceleration;
+		const updatedPosition = lanePosition + vehicle.speed * vehicle.lane.dir;
+		setVehicleLaneCoordinate(vehicle, updatedPosition);
+		if (vehicle.lane.axis === 'x') vehicle.mesh.position.z = vehicle.lane.fixed;
+		else vehicle.mesh.position.x = vehicle.lane.fixed;
+
+		if (updatedPosition > vehicle.lane.max + 2 || updatedPosition < vehicle.lane.min - 2) {
+			const reset = vehicle.lane.dir > 0 ? vehicle.lane.min + 2 : vehicle.lane.max - 2;
+			setVehicleLaneCoordinate(vehicle, reset);
+			vehicle.speed *= 0.5;
+		}
+		applyTrafficOrientation(vehicle);
 	}
 }
 // Straßen-Definitionen für Kollisionslogik
@@ -1714,33 +1900,20 @@ function getNearestZebraCrossing(x, z) {
 
 // Autos initialisieren – jetzt kennen wir die Straßen
 function initCars() {
-	// Säubern falls reinit
-	cars.length = 0; carSpeeds.length = 0; carDirections.length = 0; carIsHorizontal.length = 0;
-	// Für jede Straße einige Autos
-	for (const st of streets) {
-		const horizontal = st.length < st.width; // unsere Definition
-		const count = horizontal ? 5 : 4; // etwas weniger auf vertikalen
+	for (const vehicle of cars) {
+		if (vehicle.mesh?.parent) vehicle.mesh.parent.remove(vehicle.mesh);
+	}
+	cars.length = 0;
+	buildTrafficLanes();
+	buildTrafficIntersections();
+	for (const lane of trafficLanes) {
+		const laneLength = lane.max - lane.min;
+		const count = Math.max(1, Math.min(4, Math.floor(laneLength / 220)));
 		for (let i = 0; i < count; i++) {
-			if (horizontal) {
-				const x = st.x - st.width / 2 + 10 + Math.random() * (st.width - 20);
-				const z = st.z; // exakt auf Straße
-				const car = createCar(x, z, 0xff0000 + (i * 0x113300));
-				cars.push(car);
-				carSpeeds.push(0.4 + Math.random() * 0.25);
-				carDirections.push(Math.random() < 0.5 ? 1 : -1);
-				carIsHorizontal.push(true);
-				// Leicht versetzte Spur (optisch) durch minimale z-Anpassung
-				car.position.z += (i % 2 === 0 ? -0.8 : 0.8);
-			} else {
-				const z = st.z - st.length / 2 + 10 + Math.random() * (st.length - 20);
-				const x = st.x;
-				const car = createCar(x, z, 0x0088ff + (i * 0x220011));
-				cars.push(car);
-				carSpeeds.push(0.4 + Math.random() * 0.25);
-				carDirections.push(Math.random() < 0.5 ? 1 : -1);
-				carIsHorizontal.push(false);
-				car.position.x += (i % 2 === 0 ? -0.8 : 0.8);
-			}
+			const distributionOffset = (lane.id.split('').reduce((total, char) => total + char.charCodeAt(0), 0) % 11) / 11;
+			const lanePosition = lane.min + ((i + 0.2 + distributionOffset) / count) * laneLength + (Math.random() - 0.5) * 18;
+			const clampedPosition = Math.max(lane.min + 2, Math.min(lane.max - 2, lanePosition));
+			if (canSpawnTrafficCarOnLane(lane, clampedPosition)) spawnTrafficVehicle(lane, clampedPosition);
 		}
 	}
 }
