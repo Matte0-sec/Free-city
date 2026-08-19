@@ -5073,10 +5073,21 @@ function enterTaxi() {
 	return true;
 }
 
+function getSafeTaxiDestination(target) {
+	const buildingIndex = buildings.findIndex(building => building.x === target.x && building.z === target.z);
+	if (buildingIndex === -1) return { x: target.x, z: target.z, label: target.label };
+	const bounds = buildingBounds[buildingIndex];
+	return {
+		x: bounds.doorX,
+		z: bounds.doorZ + 8,
+		label: target.label
+	};
+}
+
 function setTaxiDestination(target) {
 	if (!taxiVehicle || taxiState !== 'choosingDestination' || !target) return;
-	taxiDestination = { x: target.x, z: target.z, label: target.label };
-	taxiFare = Math.max(25, Math.ceil(Math.hypot(taxiVehicle.position.x - target.x, taxiVehicle.position.z - target.z) * 0.35));
+	taxiDestination = getSafeTaxiDestination(target);
+	taxiFare = Math.max(25, Math.ceil(Math.hypot(taxiVehicle.position.x - taxiDestination.x, taxiVehicle.position.z - taxiDestination.z) * 0.35));
 	taxiState = 'driving';
 	taxiMapSelectionActive = false;
 	taxiDestinationPanel.style.display = 'none';
