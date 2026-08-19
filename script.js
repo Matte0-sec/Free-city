@@ -5679,25 +5679,13 @@ function ensureHouseShopPanel() {
 	houseShopPanel = document.createElement('div');
 	houseShopPanel.id = 'houseShopPanel';
 	houseShopPanel.style.cssText = `
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		z-index: 40;
-		background: rgba(25, 25, 32, 0.96);
-		color: #fff;
-		padding: 22px;
-		border-radius: 16px;
-		box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-		min-width: 520px;
-		max-width: 720px;
 		display: none;
 	`;
 	houseShopPanel.innerHTML = `
 		<h2 style="margin-top:0;">Hausmarkt</h2>
 		<p style="margin-top:0; opacity:0.85;">Wähle ein Haus aus. Jedes Kaufobjekt wird auf einem freien Grundstück gebaut.</p>
-		<div id="houseShopList" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;"></div>
-		<button id="closeHouseShop" style="margin-top:16px; padding: 10px 18px; border: none; border-radius: 8px; cursor:pointer;">Schließen</button>
+		<div id="houseShopList"></div>
+		<button id="closeHouseShop" type="button">Schließen</button>
 	`;
 	document.body.appendChild(houseShopPanel);
 	houseShopList = houseShopPanel.querySelector('#houseShopList');
