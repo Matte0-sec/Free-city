@@ -3625,6 +3625,9 @@ let lobbySocket = null;
 let remotePlayer = null;
 let remotePlayerId = null;
 let remotePlayerTarget = null;
+const remotePlayers = new Map();
+let isObserverMode = false;
+let isServerAdminVerified = false;
 let lastMultiplayerUpdate = 0;
 
 const fashionCatalog = {
@@ -4005,10 +4008,18 @@ function setupStartScreen() {
 		bankMoneySpan.textContent = `Bank: ${bankMoney} €`;
 		startMoney.textContent = `Geld: ${money} €`;
 		saveData();
-		startGameBtn.click();
+		if (!lobbySocket?.connected) {
+			showMessage('Der Multiplayer-Server ist nicht erreichbar.', 3000);
+			return;
+		}
+		lobbySocket.emit('verify-admin', { code: enteredCode });
 	});
 
 	startGameBtn.addEventListener('click', () => {
+		isObserverMode = false;
+		player.visible = true;
+		chatInput.disabled = false;
+		chatForm.querySelector('button').disabled = false;
 		mobileControlsEnabled = phoneMode;
 		document.body.classList.toggle('mobile-controls-enabled', phoneMode);
 		if (phoneMode) initializeMobileInputs();
@@ -4057,26 +4068,45 @@ function createPlayerNameLabel(name) {
 
 function showRemotePlayer(playerData) {
 	if (!playerData || playerData.id === multiplayerSocket?.id) return;
-	if (remotePlayer && remotePlayerId === playerData.id) {
-		remotePlayerTarget = playerData;
+	const existingPlayer = remotePlayers.get(playerData.id);
+	if (existingPlayer) {
+		existingPlayer.target = { ...playerData };
 		return;
 	}
-	if (remotePlayer?.parent) remotePlayer.parent.remove(remotePlayer);
-	remotePlayer = createHuman();
+	const mesh = createHuman();
+	mesh.position.set(playerData.x || 0, 0, playerData.z || 0);
+	mesh.add(createPlayerNameLabel(playerData.name || 'Freund'));
+	remotePlayers.set(playerData.id, { mesh, target: { ...playerData } });
+	remotePlayer = mesh;
 	remotePlayerId = playerData.id;
-	remotePlayer.position.set(playerData.x || 0, 0, playerData.z || 0);
-	remotePlayer.add(createPlayerNameLabel(playerData.name || 'Freund'));
 	remotePlayerTarget = { ...playerData };
-	scene.add(remotePlayer);
-	multiplayerPlayerLabel.textContent = `${playerData.name || 'Freund'} ist im Raum`;
+	scene.add(mesh);
+	multiplayerPlayerLabel.textContent = isObserverMode
+		? `${remotePlayers.size} Spieler werden beobachtet`
+		: `${playerData.name || 'Freund'} ist im Raum`;
 }
 
-function removeRemotePlayer() {
-	if (remotePlayer?.parent) remotePlayer.parent.remove(remotePlayer);
+function removeRemotePlayer(id) {
+	const remote = remotePlayers.get(id || remotePlayerId);
+	if (!remote) return;
+	if (remote.mesh.parent) remote.mesh.parent.remove(remote.mesh);
+	remotePlayers.delete(id || remotePlayerId);
 	remotePlayer = null;
 	remotePlayerId = null;
 	remotePlayerTarget = null;
-	multiplayerPlayerLabel.textContent = 'Alleine im Raum';
+	multiplayerPlayerLabel.textContent = isObserverMode
+		? `${remotePlayers.size} Spieler werden beobachtet`
+		: 'Alleine im Raum';
+}
+
+function clearRemotePlayers() {
+	for (const { mesh } of remotePlayers.values()) {
+		if (mesh.parent) mesh.parent.remove(mesh);
+	}
+	remotePlayers.clear();
+	remotePlayer = null;
+	remotePlayerId = null;
+	remotePlayerTarget = null;
 }
 
 function addChatMessage(message) {
@@ -4111,7 +4141,7 @@ chatToggleBtn.addEventListener('click', () => {
 chatForm.addEventListener('submit', event => {
 	event.preventDefault();
 	const text = chatInput.value.trim();
-	if (!text || !multiplayerSocket?.connected) return;
+	if (!text || !multiplayerSocket?.connected || isObserverMode) return;
 	multiplayerSocket.emit('chat-message', { text });
 	chatInput.value = '';
 });
@@ -4123,6 +4153,8 @@ function renderLiveRooms(rooms) {
 		return;
 	}
 	rooms.forEach(room => {
+		const entry = document.createElement('div');
+		entry.className = 'liveRoomEntry';
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'liveRoomButton';
@@ -4136,7 +4168,18 @@ function renderLiveRooms(rooms) {
 			roomCodeInput.value = room.code;
 			roomCodeInput.focus();
 		});
-		liveRoomsList.appendChild(button);
+		entry.appendChild(button);
+		if (isAdminMode && isServerAdminVerified) {
+			const observeButton = document.createElement('button');
+			observeButton.type = 'button';
+			observeButton.className = 'observeRoomButton';
+			observeButton.textContent = 'Auge';
+			observeButton.title = `${room.code} beobachten`;
+			observeButton.setAttribute('aria-label', `${room.code} als Admin beobachten`);
+			observeButton.addEventListener('click', () => observeRoom(room.code));
+			entry.appendChild(observeButton);
+		}
+		liveRoomsList.appendChild(entry);
 	});
 }
 
@@ -4237,6 +4280,29 @@ function connectToLobby() {
 		syncLeaderboardWealth();
 	});
 	lobbySocket.on('rooms-updated', renderLiveRooms);
+	lobbySocket.on('admin-verified', () => {
+		isServerAdminVerified = true;
+		showMessage('Admin aktiviert. Waehle einen Raum zum Beobachten.', 3000);
+		lobbySocket.emit('get-rooms');
+	});
+	lobbySocket.on('admin-error', message => {
+		isServerAdminVerified = false;
+		isAdminMode = false;
+		showMessage(message, 3000);
+	});
+	lobbySocket.on('room-joined-observer', data => startObserverSession(data));
+	lobbySocket.on('chat-message', message => {
+		if (isObserverMode) addChatMessage(message);
+	});
+	lobbySocket.on('player-joined', data => {
+		if (isObserverMode) showRemotePlayer(data.player);
+	});
+	lobbySocket.on('player-moved', data => {
+		if (isObserverMode) showRemotePlayer(data);
+	});
+	lobbySocket.on('player-left', data => {
+		if (isObserverMode) removeRemotePlayer(data.id);
+	});
 	lobbySocket.on('leaderboard-updated', renderLeaderboard);
 	lobbySocket.on('profile-data', data => {
 		if (data.own) {
@@ -4296,13 +4362,41 @@ function connectToMultiplayerRoom() {
 	multiplayerSocket.on('connect_error', () => showMessage('Multiplayer-Server nicht erreichbar.', 3500));
 }
 
-function updateMultiplayer() {
-	if (remotePlayer && remotePlayerTarget) {
-		remotePlayer.position.x += (remotePlayerTarget.x - remotePlayer.position.x) * 0.22;
-		remotePlayer.position.z += (remotePlayerTarget.z - remotePlayer.position.z) * 0.22;
-		remotePlayer.rotation.y = remotePlayerTarget.rotation || 0;
+function observeRoom(roomCode) {
+	if (!isAdminMode || !isServerAdminVerified || !lobbySocket?.connected) {
+		showMessage('Admin-Verifikation erforderlich.', 2500);
+		return;
 	}
-	if (!multiplayerSocket?.connected || Date.now() - lastMultiplayerUpdate < 75) return;
+	lobbySocket.emit('join-room-observer', { roomCode });
+}
+
+function startObserverSession(data) {
+	isObserverMode = true;
+	player.visible = false;
+	mobileControlsEnabled = false;
+	document.body.classList.remove('mobile-controls-enabled');
+	isGameSessionActive = true;
+	startOverlay.style.display = 'none';
+	multiplayerSocket = lobbySocket;
+	multiplayerStatus.style.display = 'flex';
+	multiplayerRoomLabel.textContent = `Beobachter: Raum ${data.roomCode}`;
+	multiplayerPlayerLabel.textContent = 'Spieler werden geladen';
+	gameChat.style.display = 'block';
+	chatInput.value = '';
+	chatInput.disabled = true;
+	chatInput.placeholder = 'Beobachtermodus: Nur lesen';
+	chatForm.querySelector('button').disabled = true;
+	clearRemotePlayers();
+	data.players.forEach(showRemotePlayer);
+}
+
+function updateMultiplayer() {
+	for (const { mesh, target } of remotePlayers.values()) {
+		mesh.position.x += (target.x - mesh.position.x) * 0.22;
+		mesh.position.z += (target.z - mesh.position.z) * 0.22;
+		mesh.rotation.y = target.rotation || 0;
+	}
+	if (isObserverMode || !multiplayerSocket?.connected || Date.now() - lastMultiplayerUpdate < 75) return;
 	multiplayerSocket.emit('player-move', {
 		x: player.position.x,
 		z: player.position.z,

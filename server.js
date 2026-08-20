@@ -15,6 +15,7 @@ const rooms = new Map();
 const profiles = new Map();
 const profileSockets = new Map();
 const maxPlayersPerRoom = 2;
+const adminObserverCode = process.env.ADMIN_OBSERVER_CODE || 'FREECITY-ADMIN';
 
 app.use(express.static(__dirname));
 
@@ -100,6 +101,14 @@ io.on('connection', socket => {
 	let roomCode = null;
 	socket.emit('rooms-updated', getLiveRooms());
 	socket.on('get-rooms', () => socket.emit('rooms-updated', getLiveRooms()));
+	socket.on('verify-admin', data => {
+		if (String(data?.code || '') !== adminObserverCode) {
+			socket.emit('admin-error', 'Admin-Code ist nicht korrekt.');
+			return;
+		}
+		socket.isAdminObserver = true;
+		socket.emit('admin-verified');
+	});
 	socket.on('register-profile', data => {
 		const profile = registerProfile(socket, data?.playerName);
 		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
@@ -167,6 +176,23 @@ io.on('connection', socket => {
 		broadcastLiveRooms();
 	});
 
+	socket.on('join-room-observer', data => {
+		if (!socket.isAdminObserver) {
+			socket.emit('room-error', 'Admin-Verifikation erforderlich.');
+			return;
+		}
+		const requestedRoom = sanitizeText(data?.roomCode, '', 12).toUpperCase();
+		const room = rooms.get(requestedRoom);
+		if (!requestedRoom || !room) {
+			socket.emit('room-error', 'Dieser Raum ist nicht mehr online.');
+			return;
+		}
+		roomCode = requestedRoom;
+		socket.isRoomObserver = true;
+		socket.join(roomCode);
+		socket.emit('room-joined-observer', { roomCode, players: room });
+	});
+
 	socket.on('player-move', state => {
 		if (!roomCode || !rooms.has(roomCode)) return;
 		const player = rooms.get(roomCode).find(entry => entry.id === socket.id);
@@ -190,11 +216,13 @@ io.on('connection', socket => {
 		if (roomCode && rooms.has(roomCode)) {
 			const room = rooms.get(roomCode);
 			const playerIndex = room.findIndex(player => player.id === socket.id);
-			if (playerIndex !== -1) room.splice(playerIndex, 1);
-			io.to(roomCode).emit('player-left', { id: socket.id });
-			if (room.length === 0) rooms.delete(roomCode);
-			else io.to(roomCode).emit('room-count', room.length);
-			broadcastLiveRooms();
+			if (playerIndex !== -1) {
+				room.splice(playerIndex, 1);
+				io.to(roomCode).emit('player-left', { id: socket.id });
+				if (room.length === 0) rooms.delete(roomCode);
+				else io.to(roomCode).emit('room-count', room.length);
+				broadcastLiveRooms();
+			}
 		}
 		unregisterProfile(socket);
 	});

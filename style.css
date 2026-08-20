@@ -281,6 +281,20 @@ h1 {
 	color: #97a1a7;
 	cursor: not-allowed;
 }
+.liveRoomEntry {
+	display: flex;
+	gap: 6px;
+}
+.liveRoomEntry .liveRoomButton { flex: 1; }
+.observeRoomButton {
+	width: 38px;
+	border: 1px solid #d0af59;
+	border-radius: 4px;
+	background: #3b3825;
+	color: #fff0b9;
+	cursor: pointer;
+}
+.observeRoomButton:hover { background: #57502d; }
 .liveRoomCount {
 	color: #a6e7ae;
 }
