@@ -889,11 +889,18 @@ const availableQuests = [
 		npcDialog: "Dieser Brief muss dringend zur Bank. Hilfst du mir?"
 	}
 ];
-let money = parseInt(getGameData('money')) || 0;
-let bankMoney = parseInt(getGameData('bankMoney')) || 0;
-let isAdminMode = getGameData('isAdminMode') === 'true';
 const ADMIN_ACCESS_CODE = 'FREECITY-ADMIN';
 const ADMIN_MONEY_AMOUNT = 999999999;
+let money = parseInt(getGameData('money')) || 0;
+let bankMoney = parseInt(getGameData('bankMoney')) || 0;
+if (money === ADMIN_MONEY_AMOUNT && bankMoney === ADMIN_MONEY_AMOUNT) {
+	money = 0;
+	bankMoney = 0;
+	setGameData('money', money);
+	setGameData('bankMoney', bankMoney);
+}
+let isAdminMode = false;
+localStorage.removeItem('isAdminMode');
 let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 5000€ Startgeld
 let hunger = Math.max(0, Math.min(100, Number(getGameData('hunger')) || 100));
 let foodInventory = JSON.parse(getGameData('foodInventory') || '{"apple":0,"bread":0,"drink":0}');
@@ -1137,10 +1144,10 @@ function saveData() {
 	if (isAdminMode) {
 		money = ADMIN_MONEY_AMOUNT;
 		bankMoney = ADMIN_MONEY_AMOUNT;
+	} else {
+		setGameData('money', money);
+		setGameData('bankMoney', bankMoney);
 	}
-	setGameData('money', money);
-	setGameData('bankMoney', bankMoney);
-	setGameData('isAdminMode', isAdminMode);
 	setGameData('npcBankMoney', npcBankMoney);
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
