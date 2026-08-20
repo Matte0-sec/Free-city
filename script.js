@@ -50,6 +50,7 @@ const prisonerList = document.getElementById('prisonerList');
 const startOverlay = document.getElementById('startOverlay');
 const startCharacterPreview = document.getElementById('startCharacterPreview');
 const startMoney = document.getElementById('startMoney');
+const adminTriggerBtn = document.getElementById('adminTriggerBtn');
 const deviceModeBtn = document.getElementById('deviceModeBtn');
 const deviceModeLabel = document.getElementById('deviceModeLabel');
 const startGameBtn = document.getElementById('startGameBtn');
@@ -882,6 +883,9 @@ const availableQuests = [
 ];
 let money = parseInt(getGameData('money')) || 0;
 let bankMoney = parseInt(getGameData('bankMoney')) || 0;
+let isAdminMode = getGameData('isAdminMode') === 'true';
+const ADMIN_ACCESS_CODE = 'FREECITY-ADMIN';
+const ADMIN_MONEY_AMOUNT = 999999999;
 let npcBankMoney = parseInt(getGameData('npcBankMoney')) || 5000; // NPCs haben 5000€ Startgeld
 let hunger = Math.max(0, Math.min(100, Number(getGameData('hunger')) || 100));
 let foodInventory = JSON.parse(getGameData('foodInventory') || '{"apple":0,"bread":0,"drink":0}');
@@ -1122,8 +1126,13 @@ if (houseBought) {
 setupCarDealer();
 
 function saveData() {
+	if (isAdminMode) {
+		money = ADMIN_MONEY_AMOUNT;
+		bankMoney = ADMIN_MONEY_AMOUNT;
+	}
 	setGameData('money', money);
 	setGameData('bankMoney', bankMoney);
+	setGameData('isAdminMode', isAdminMode);
 	setGameData('npcBankMoney', npcBankMoney);
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
@@ -3966,6 +3975,18 @@ function setupStartScreen() {
 		phoneMode = !phoneMode;
 		deviceModeBtn.textContent = phoneMode ? '📱' : '💻';
 		deviceModeLabel.textContent = phoneMode ? 'Handy-Steuerung' : 'Computer-Steuerung';
+	});
+	adminTriggerBtn.addEventListener('click', () => {
+		const enteredCode = window.prompt('Admin-Code eingeben:');
+		if (enteredCode !== ADMIN_ACCESS_CODE) return;
+		isAdminMode = true;
+		money = ADMIN_MONEY_AMOUNT;
+		bankMoney = ADMIN_MONEY_AMOUNT;
+		moneySpan.textContent = `Geld: ${money} €`;
+		bankMoneySpan.textContent = `Bank: ${bankMoney} €`;
+		startMoney.textContent = `Geld: ${money} €`;
+		saveData();
+		startGameBtn.click();
 	});
 
 	startGameBtn.addEventListener('click', () => {

@@ -39,6 +39,7 @@ h1 {
 }
 #startPanel {
 	box-sizing: border-box;
+	position: relative;
 	width: 100%;
 	min-height: 100%;
 	padding: clamp(24px, 5vw, 68px);
@@ -46,6 +47,23 @@ h1 {
 	color: #fff;
 	text-align: left;
 	overflow-y: auto;
+}
+.adminTriggerBtn {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(214, 235, 247, 0.08);
+	cursor: default;
+}
+.adminTriggerBtn:hover,
+.adminTriggerBtn:focus-visible {
+	background: rgba(214, 235, 247, 0.22);
+	cursor: pointer;
 }
 #startHeader {
 	display: flex;
