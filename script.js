@@ -3728,6 +3728,10 @@ const npcCrosswalkCooldowns = [];
 const npcIsFalling = [];
 const npcFallTime = [];
 const npcIsChasing = [];
+const npcHealth = [];
+const npcCombatStates = [];
+const npcAttackCooldowns = [];
+const npcKnockoutUntil = [];
 
 const NPC_CROSSWALK_CHANCE = 0.18;
 const NPC_CROSSWALK_COOLDOWN_MS = 12000;
@@ -3788,6 +3792,10 @@ function addNPCs(count) {
 		npcIsFalling.push(false);
 		npcFallTime.push(0);
 		npcIsChasing.push(false);
+		npcHealth.push(i < 3 ? 160 : 100);
+		npcCombatStates.push('calm');
+		npcAttackCooldowns.push(0);
+		npcKnockoutUntil.push(0);
 	}
 }
 
@@ -3820,6 +3828,10 @@ function addRequesterNPCs() {
 		npcIsFalling.push(false);
 		npcFallTime.push(0);
 		npcIsChasing.push(false);
+		npcHealth.push(100);
+		npcCombatStates.push('calm');
+		npcAttackCooldowns.push(0);
+		npcKnockoutUntil.push(0);
 	});
 }
 
@@ -3927,6 +3939,7 @@ function initializeMobileInputs() {
 		if (!isPunching) {
 			isPunching = true;
 			punchTime = Date.now();
+			punchHitNpcIndices = new Set();
 		}
 	});
 }
@@ -4263,11 +4276,59 @@ setupStartScreen();
 // Punch-System
 let isPunching = false;
 let punchTime = 0;
+let punchHitNpcIndices = new Set();
+
+function defeatNpc(index) {
+	const npc = npcs[index];
+	if (!npc || npc.userData.isDefeated) return;
+	npcCombatStates[index] = 'down';
+	npcIsFalling[index] = true;
+	npcFallTime[index] = Date.now();
+	if (Math.random() < 0.35) {
+		npc.userData.isDefeated = true;
+		setTimeout(() => { npc.visible = false; }, 500);
+		showMessage('NPC wurde besiegt.', 1800);
+		return;
+	}
+	npcKnockoutUntil[index] = Date.now() + 25000;
+	showMessage('NPC ist bewusstlos.', 1800);
+}
+
+function damageNpc(index, amount, source) {
+	const npc = npcs[index];
+	if (!npc || npc.userData.isDefeated || npcCombatStates[index] === 'down') return;
+	npcHealth[index] = Math.max(0, npcHealth[index] - amount);
+	if (npcHealth[index] <= 0) {
+		defeatNpc(index);
+		return;
+	}
+	const awayX = npc.position.x - player.position.x;
+	const awayZ = npc.position.z - player.position.z;
+	const distance = Math.max(1, Math.hypot(awayX, awayZ));
+	if (index < 3) {
+		npcIsChasing[index] = true;
+		npcCombatStates[index] = 'police';
+		showMessage(`Polizist getroffen. Die Polizei reagiert auf ${source}.`, 2200);
+		return;
+	}
+	if (Math.random() < 0.55) {
+		npcCombatStates[index] = 'flee';
+		npcTargets[index] = {
+			x: npc.position.x + (awayX / distance) * 70,
+			z: npc.position.z + (awayZ / distance) * 70
+		};
+		showMessage('NPC flieht!', 1400);
+	} else {
+		npcCombatStates[index] = 'attack';
+		showMessage('NPC greift dich an!', 1400);
+	}
+}
 document.addEventListener('contextmenu', e => {
 	e.preventDefault(); // Verhindert Kontextmenü
 	if (!isPunching) {
 		isPunching = true;
 		punchTime = Date.now();
+		punchHitNpcIndices = new Set();
 	}
 });
 
@@ -4501,38 +4562,14 @@ function animate() {
 				// Punch-Kollision mit NPCs
 				for (let i = 0; i < npcs.length; i++) {
 					const npc = npcs[i];
+					if (punchHitNpcIndices.has(i) || npc.userData.isRequester || npc.userData.isDefeated || npcCombatStates[i] === 'down') continue;
 					const dist = Math.sqrt(
 						Math.pow(npc.position.x - player.position.x, 2) +
 						Math.pow(npc.position.z - player.position.z, 2)
 					);
-					if (dist < 3) { // Nah genug
-						if (i < 3) { // Polizist
-							// Polizist verfolgt den Spieler
-							npcIsChasing[i] = true;
-							npcTargets[i] = {
-								x: player.position.x,
-								z: player.position.z
-							};
-							showMessage('Polizist verfolgt dich!', 2000);
-						} else {
-							// Normaler NPC: zurückstoßen und fallen lassen
-							const dx = npc.position.x - player.position.x;
-							const dz = npc.position.z - player.position.z;
-							const norm = Math.sqrt(dx * dx + dz * dz);
-							if (norm > 0) {
-								npc.position.x += (dx / norm) * 5; // Stärker zurückstoßen
-								npc.position.z += (dz / norm) * 5;
-								npc.position.y = 1; // Hochheben für Fall
-							}
-							// NPC fallen lassen
-							npcIsFalling[i] = true;
-							npcFallTime[i] = Date.now();
-							// NPC neues Ziel setzen, um wegzulaufen
-							npcTargets[i] = {
-								x: npc.position.x + (dx / norm) * 30,
-								z: npc.position.z + (dz / norm) * 30
-							};
-						}
+					if (dist < 3) {
+						punchHitNpcIndices.add(i);
+						damageNpc(i, 12, 'Faustschlag');
 					}
 				}
 			} else if (elapsed < 600) {
@@ -4589,8 +4626,9 @@ function animate() {
 				npc.position.y = 0;
 				// Bleib liegen
 			} else {
-				// Aufstehen
 				npc.position.y = 0;
+				if (npc.userData.isDefeated) continue;
+				// Aufstehen
 				npcIsFalling[i] = false;
 				// Arme und Beine zurücksetzen
 				const leftArm = npc.getObjectByName('leftArm');
@@ -4603,6 +4641,20 @@ function animate() {
 				if (rightLeg) rightLeg.rotation.x = 0;
 			}
 			continue; // Während Fallen keine normale Bewegung
+		}
+		if (npc.userData.isDefeated) continue;
+		if (npcCombatStates[i] === 'down') {
+			if (Date.now() < npcKnockoutUntil[i]) {
+				npc.position.y = 0;
+				continue;
+			}
+			npcHealth[i] = 40;
+			npcCombatStates[i] = 'flee';
+			npcTargets[i] = {
+				x: npc.position.x + (Math.random() - 0.5) * 80,
+				z: npc.position.z + (Math.random() - 0.5) * 80
+			};
+			showMessage('NPC ist wieder bei Bewusstsein und flieht.', 1800);
 		}
 
 		// Polizist verfolgt Spieler
@@ -4641,9 +4693,30 @@ function animate() {
 			}
 			continue; // Überspringe normale Bewegung
 		}
+		if (npcCombatStates[i] === 'attack') {
+			const dx = player.position.x - npc.position.x;
+			const dz = player.position.z - npc.position.z;
+			const distance = Math.hypot(dx, dz);
+			const rightArm = npc.getObjectByName('rightArm');
+			const attackEnd = npc.userData.attackAnimationUntil || 0;
+			if (rightArm) {
+				rightArm.rotation.z = attackEnd > Date.now() ? -Math.PI / 2 : 0;
+				rightArm.position.z = attackEnd > Date.now() ? 0.45 : 0;
+			}
+			if (distance > 2.2) {
+				npc.position.x += (dx / distance) * 0.12;
+				npc.position.z += (dz / distance) * 0.12;
+				npc.rotation.y = Math.atan2(dx, dz);
+			} else if (Date.now() >= npcAttackCooldowns[i]) {
+				npcAttackCooldowns[i] = Date.now() + 1100;
+				npc.userData.attackAnimationUntil = Date.now() + 280;
+				damagePlayer(4 + Math.floor(Math.random() * 5), 'NPC-Angriff');
+			}
+			continue;
+		}
 
 		const target = npcTargets[i];
-		const s = npcSpeeds[i];
+		const s = npcCombatStates[i] === 'flee' ? Math.max(npcSpeeds[i] * 2.5, 0.25) : npcSpeeds[i];
 		const dx = target.x - npc.position.x;
 		const dz = target.z - npc.position.z;
 		const dist = Math.sqrt(dx * dx + dz * dz);
@@ -4655,7 +4728,7 @@ function animate() {
 		// Wenn Spieler nahe (<7), NPC bleibt stehen und winkt mit beiden Armen
 		const leftArm = npc.getObjectByName('leftArm');
 		const rightArm = npc.getObjectByName('rightArm');
-		if (distToPlayer < 7) {
+		if (distToPlayer < 7 && npcCombatStates[i] !== 'flee') {
 			// Winken: beide Arme bewegen sich
 			if (leftArm) leftArm.rotation.z = Math.sin(Date.now() * 0.005 + i) * 0.8;
 			if (rightArm) rightArm.rotation.z = Math.cos(Date.now() * 0.005 + i) * 0.8;
@@ -5038,32 +5111,36 @@ function useSelectedWeapon() {
 	if (Date.now() - weaponLastUsedAt < weapon.cooldown) return;
 	weaponLastUsedAt = Date.now();
 	weaponInventory[weapon.id] -= 1;
-	const direction = { x: Math.sin(player.rotation.y), z: Math.cos(player.rotation.y) };
-	let hitIndex = -1;
-	let hitDistance = weapon.range;
-	npcs.forEach((npc, index) => {
-		const offsetX = npc.position.x - player.position.x;
-		const offsetZ = npc.position.z - player.position.z;
-		const distance = Math.hypot(offsetX, offsetZ);
-		if (!distance || distance > hitDistance) return;
-		if ((offsetX / distance) * direction.x + (offsetZ / distance) * direction.z < 0.78) return;
-		hitIndex = index;
-		hitDistance = distance;
+	const pelletOffsets = weapon.id === 'shotgun' ? [-0.13, -0.043, 0.043, 0.13] : [0];
+	let hitSomeone = false;
+	pelletOffsets.forEach(offset => {
+		const angle = player.rotation.y + offset;
+		const direction = { x: Math.sin(angle), z: Math.cos(angle) };
+		let hitIndex = -1;
+		let hitDistance = weapon.range;
+		npcs.forEach((npc, index) => {
+			if (npc.userData.isRequester || npc.userData.isDefeated || npcCombatStates[index] === 'down') return;
+			const offsetX = npc.position.x - player.position.x;
+			const offsetZ = npc.position.z - player.position.z;
+			const distance = Math.hypot(offsetX, offsetZ);
+			if (!distance || distance > hitDistance) return;
+			if ((offsetX / distance) * direction.x + (offsetZ / distance) * direction.z < 0.78) return;
+			hitIndex = index;
+			hitDistance = distance;
+		});
+		const endX = player.position.x + direction.x * hitDistance;
+		const endZ = player.position.z + direction.z * hitDistance;
+		const tracer = new THREE.Line(
+			new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(player.position.x, 2.8, player.position.z), new THREE.Vector3(endX, 2.8, endZ)]),
+			new THREE.LineBasicMaterial({ color: 0xffd25a })
+		);
+		scene.add(tracer);
+		setTimeout(() => scene.remove(tracer), 80);
+		if (hitIndex < 0) return;
+		damageNpc(hitIndex, weapon.id === 'shotgun' ? 24 : 38, weapon.name);
+		hitSomeone = true;
 	});
-	const endX = player.position.x + direction.x * hitDistance;
-	const endZ = player.position.z + direction.z * hitDistance;
-	const tracer = new THREE.Line(
-		new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(player.position.x, 2.8, player.position.z), new THREE.Vector3(endX, 2.8, endZ)]),
-		new THREE.LineBasicMaterial({ color: 0xffd25a })
-	);
-	scene.add(tracer);
-	setTimeout(() => scene.remove(tracer), 80);
-	if (hitIndex >= 0) {
-		const target = npcs[hitIndex];
-		npcIsFalling[hitIndex] = true;
-		npcFallTime[hitIndex] = Date.now();
-		npcTargets[hitIndex] = { x: target.position.x + direction.x * 20, z: target.position.z + direction.z * 20 };
-		if (hitIndex < 3) npcIsChasing[hitIndex] = true;
+	if (hitSomeone) {
 		wantedLevel = Math.max(wantedLevel, 2);
 		policeAlert = true;
 		showMessage('Treffer. Die Polizei wurde alarmiert.', 2500);
