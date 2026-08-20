@@ -55,6 +55,7 @@ const deviceModeBtn = document.getElementById('deviceModeBtn');
 const deviceModeLabel = document.getElementById('deviceModeLabel');
 const startGameBtn = document.getElementById('startGameBtn');
 const tutorialBtn = document.getElementById('tutorialBtn');
+const upgradeNotificationBadge = document.getElementById('upgradeNotificationBadge');
 const tutorialDialog = document.getElementById('tutorialDialog');
 const closeTutorialBtn = document.getElementById('closeTutorialBtn');
 const playerNameInput = document.getElementById('playerNameInput');
@@ -125,6 +126,13 @@ function getGameData(key) {
 
 function setGameData(key, value) {
 	localStorage.setItem(key, value);
+}
+
+const TUTORIAL_UPGRADE_VERSION = '2026-08-combat-traffic-social';
+
+function markTutorialUpgradesAsRead() {
+	setGameData('tutorialUpgradesReadVersion', TUTORIAL_UPGRADE_VERSION);
+	upgradeNotificationBadge.hidden = true;
 }
 
 // Uhrzeit-System
@@ -3957,8 +3965,12 @@ function setupStartScreen() {
 	let phoneMode = false;
 	roomCodeInput.value = Math.random().toString(36).slice(2, 8).toUpperCase();
 	startMoney.textContent = `Geld: ${money} €`;
+	upgradeNotificationBadge.hidden = getGameData('tutorialUpgradesReadVersion') === TUTORIAL_UPGRADE_VERSION;
 	connectToLobby();
-	tutorialBtn.addEventListener('click', () => { tutorialDialog.hidden = false; });
+	tutorialBtn.addEventListener('click', () => {
+		tutorialDialog.hidden = false;
+		markTutorialUpgradesAsRead();
+	});
 	closeTutorialBtn.addEventListener('click', () => { tutorialDialog.hidden = true; });
 	playerNameInput.addEventListener('change', registerCurrentProfile);
 	addFriendBtn.addEventListener('click', () => {

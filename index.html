@@ -35,7 +35,7 @@
 						<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
 					</label>
 					<button id="startGameBtn" type="button">Spiel starten</button>
-					<button id="tutorialBtn" type="button">Tutorial</button>
+					<button id="tutorialBtn" type="button">Tutorial <span id="upgradeNotificationBadge" class="upgradeNotificationBadge" hidden aria-label="Neue Upgrades">!</span></button>
 				</section>
 				<section id="liveRooms" class="startMenuSection" aria-labelledby="liveRoomsTitle">
 					<h3 id="liveRoomsTitle">Live-Raeume</h3>
@@ -68,6 +68,16 @@
 				<button id="closeTutorialBtn" type="button" aria-label="Tutorial schließen">X</button>
 			</div>
 			<div class="tutorialContent">
+				<section class="tutorialUpgrades" aria-labelledby="tutorialUpgradesTitle">
+					<h3 id="tutorialUpgradesTitle">Neue Upgrades</h3>
+					<ul>
+						<li>NPCs reagieren nun auf Angriffe: Sie fliehen, wehren sich oder werden bewusstlos.</li>
+						<li>Pistole und Schrotflinte sind im Waffenladen verfuegbar; Waffen verursachen mehr Schaden als Faeuste.</li>
+						<li>Der Stadtverkehr folgt Spuren, Ampeln und kann an Kreuzungen abbiegen.</li>
+						<li>Immobilien bringen Einkommen, und das Taxi setzt dich sicher vor Gebaeuden ab.</li>
+						<li>Rangliste, Freunde und private Mehrspieler-Raeume wurden erweitert.</li>
+					</ul>
+				</section>
 				<section>
 					<h3>Steuerung</h3>
 					<p>Bewege dich mit W, A, S und D oder den Pfeiltasten. Mit der Maus drehst du die Kamera. Drücke E für Gebäude, Fahrzeuge und Aktionen, R zum Verlassen und H für dein Handy.</p>
