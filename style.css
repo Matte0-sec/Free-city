@@ -295,6 +295,62 @@ h1 {
 	cursor: pointer;
 }
 .observeRoomButton:hover { background: #57502d; }
+.observerModerationPanel {
+	position: fixed;
+	left: 18px;
+	bottom: 18px;
+	z-index: 1003;
+	box-sizing: border-box;
+	width: min(280px, calc(100vw - 36px));
+	padding: 12px;
+	border: 1px solid #d0af59;
+	border-radius: 6px;
+	background: rgba(24, 28, 25, 0.94);
+	color: #f3f0dc;
+	text-align: left;
+}
+.observerModerationPanel h2,
+.observerModerationPanel h3 {
+	margin: 0 0 8px;
+	color: #f6d878;
+	font-size: 0.92rem;
+}
+.observerModerationPanel h3 { margin-top: 14px; }
+.observerModerationPanel select,
+.observerModerationPanel input,
+.observerModerationPanel button {
+	box-sizing: border-box;
+	width: 100%;
+	margin-bottom: 7px;
+	padding: 7px;
+	border: 1px solid #6f7967;
+	border-radius: 4px;
+	background: #252d27;
+	color: #fff;
+	font: inherit;
+}
+.observerModerationPanel button {
+	border-color: #b95b52;
+	background: #71352f;
+	cursor: pointer;
+}
+.observerBanEntry {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 6px;
+	font-size: 0.75rem;
+}
+.observerBanEntry span { overflow-wrap: anywhere; }
+.observerBanEntry button {
+	width: auto;
+	margin: 0;
+	padding: 4px 6px;
+	border-color: #719a78;
+	background: #365b3b;
+	font-size: 0.72rem;
+}
 .liveRoomCount {
 	color: #a6e7ae;
 }

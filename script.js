@@ -4081,6 +4081,7 @@ function showRemotePlayer(playerData) {
 	remotePlayerId = playerData.id;
 	remotePlayerTarget = { ...playerData };
 	scene.add(mesh);
+	refreshObserverPlayerOptions();
 	multiplayerPlayerLabel.textContent = isObserverMode
 		? `${remotePlayers.size} Spieler werden beobachtet`
 		: `${playerData.name || 'Freund'} ist im Raum`;
@@ -4094,6 +4095,7 @@ function removeRemotePlayer(id) {
 	remotePlayer = null;
 	remotePlayerId = null;
 	remotePlayerTarget = null;
+	refreshObserverPlayerOptions();
 	multiplayerPlayerLabel.textContent = isObserverMode
 		? `${remotePlayers.size} Spieler werden beobachtet`
 		: 'Alleine im Raum';
@@ -4107,6 +4109,79 @@ function clearRemotePlayers() {
 	remotePlayer = null;
 	remotePlayerId = null;
 	remotePlayerTarget = null;
+	refreshObserverPlayerOptions();
+}
+
+function getObserverModerationPanel() {
+	return document.getElementById('observerModerationPanel');
+}
+
+function refreshObserverPlayerOptions() {
+	const playerSelect = document.getElementById('observerPlayerSelect');
+	if (!playerSelect) return;
+	playerSelect.replaceChildren();
+	for (const remote of remotePlayers.values()) {
+		const option = document.createElement('option');
+		option.value = remote.target.name || '';
+		option.textContent = remote.target.name || 'Unbekannter Spieler';
+		playerSelect.appendChild(option);
+	}
+}
+
+function renderAdminBanList(bans) {
+	const list = document.getElementById('observerBanList');
+	if (!list) return;
+	list.replaceChildren();
+	if (!bans.length) {
+		list.textContent = 'Keine Spieler gesperrt.';
+		return;
+	}
+	for (const ban of bans) {
+		const entry = document.createElement('div');
+		entry.className = 'observerBanEntry';
+		const details = document.createElement('span');
+		details.textContent = ban.reason ? `${ban.name}: ${ban.reason}` : ban.name;
+		const unbanButton = document.createElement('button');
+		unbanButton.type = 'button';
+		unbanButton.textContent = 'Entsperren';
+		unbanButton.addEventListener('click', () => lobbySocket?.emit('admin-unban-player', { playerName: ban.name }));
+		entry.append(details, unbanButton);
+		list.appendChild(entry);
+	}
+}
+
+function createObserverModerationPanel() {
+	getObserverModerationPanel()?.remove();
+	const panel = document.createElement('section');
+	panel.id = 'observerModerationPanel';
+	panel.className = 'observerModerationPanel';
+	panel.setAttribute('aria-label', 'Admin-Moderation');
+	const title = document.createElement('h2');
+	title.textContent = 'Moderation';
+	const playerSelect = document.createElement('select');
+	playerSelect.id = 'observerPlayerSelect';
+	playerSelect.setAttribute('aria-label', 'Spieler auswaehlen');
+	const reasonInput = document.createElement('input');
+	reasonInput.id = 'observerBanReason';
+	reasonInput.type = 'text';
+	reasonInput.maxLength = 80;
+	reasonInput.placeholder = 'Grund (optional)';
+	const banButton = document.createElement('button');
+	banButton.type = 'button';
+	banButton.textContent = 'Spieler sperren';
+	banButton.addEventListener('click', () => {
+		const playerName = playerSelect.value;
+		if (!playerName) return;
+		lobbySocket?.emit('admin-ban-player', { playerName, reason: reasonInput.value.trim() });
+	});
+	const listTitle = document.createElement('h3');
+	listTitle.textContent = 'Gesperrte Spieler';
+	const banList = document.createElement('div');
+	banList.id = 'observerBanList';
+	panel.append(title, playerSelect, reasonInput, banButton, listTitle, banList);
+	document.body.appendChild(panel);
+	refreshObserverPlayerOptions();
+	lobbySocket?.emit('admin-list-bans');
 }
 
 function addChatMessage(message) {
@@ -4290,6 +4365,8 @@ function connectToLobby() {
 		isAdminMode = false;
 		showMessage(message, 3000);
 	});
+	lobbySocket.on('admin-success', message => showMessage(message, 2500));
+	lobbySocket.on('admin-ban-list', renderAdminBanList);
 	lobbySocket.on('room-joined-observer', data => startObserverSession(data));
 	lobbySocket.on('chat-message', message => {
 		if (isObserverMode) addChatMessage(message);
@@ -4388,6 +4465,7 @@ function startObserverSession(data) {
 	chatForm.querySelector('button').disabled = true;
 	clearRemotePlayers();
 	data.players.forEach(showRemotePlayer);
+	createObserverModerationPanel();
 }
 
 function updateMultiplayer() {

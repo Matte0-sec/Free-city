@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -16,6 +17,8 @@ const profiles = new Map();
 const profileSockets = new Map();
 const maxPlayersPerRoom = 2;
 const adminObserverCode = process.env.ADMIN_OBSERVER_CODE || 'FREECITY-ADMIN';
+const bansFilePath = path.join(__dirname, 'bans.json');
+const bans = new Map();
 
 app.use(express.static(__dirname));
 
@@ -23,6 +26,34 @@ function sanitizeText(value, fallback, maxLength) {
 	const text = String(value || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
 	return (text || fallback).slice(0, maxLength);
 }
+
+function loadBans() {
+	try {
+		if (!fs.existsSync(bansFilePath)) return;
+		const savedBans = JSON.parse(fs.readFileSync(bansFilePath, 'utf8'));
+		if (Array.isArray(savedBans)) bans.set(savedBans);
+	} catch (error) {
+		console.error('Sperrliste konnte nicht geladen werden.', error);
+	}
+}
+
+function saveBans() {
+	try {
+		fs.writeFileSync(bansFilePath, JSON.stringify([...bans.entries()], null, 2));
+	} catch (error) {
+		console.error('Sperrliste konnte nicht gespeichert werden.', error);
+	}
+}
+
+function getBan(name) {
+	return bans.get(profileKey(name));
+}
+
+function getBanList() {
+	return [...bans.values()].sort((first, second) => second.bannedAt - first.bannedAt);
+}
+
+loadBans();
 
 function getLiveRooms() {
 	return [...rooms.entries()].map(([code, players]) => ({
@@ -110,7 +141,13 @@ io.on('connection', socket => {
 		socket.emit('admin-verified');
 	});
 	socket.on('register-profile', data => {
-		const profile = registerProfile(socket, data?.playerName);
+		const playerName = sanitizeText(data?.playerName, 'Spieler', 16);
+		const ban = getBan(playerName);
+		if (ban) {
+			socket.emit('profile-error', `Du bist gesperrt${ban.reason ? `: ${ban.reason}` : '.'}`);
+			return;
+		}
+		const profile = registerProfile(socket, playerName);
 		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
 		socket.emit('leaderboard-updated', getLeaderboard());
 	});
@@ -153,6 +190,11 @@ io.on('connection', socket => {
 	socket.on('join-room', data => {
 		const requestedRoom = sanitizeText(data?.roomCode, '', 12).toUpperCase();
 		const playerName = sanitizeText(data?.playerName, 'Spieler', 16);
+		const ban = getBan(playerName);
+		if (ban) {
+			socket.emit('room-error', `Du bist gesperrt${ban.reason ? `: ${ban.reason}` : '.'}`);
+			return;
+		}
 		registerProfile(socket, playerName);
 		if (!requestedRoom) {
 			socket.emit('room-error', 'Bitte gib einen Raumcode ein.');
@@ -191,6 +233,52 @@ io.on('connection', socket => {
 		socket.isRoomObserver = true;
 		socket.join(roomCode);
 		socket.emit('room-joined-observer', { roomCode, players: room });
+	});
+
+	socket.on('admin-list-bans', () => {
+		if (!socket.isAdminObserver) return;
+		socket.emit('admin-ban-list', getBanList());
+	});
+
+	socket.on('admin-ban-player', data => {
+		if (!socket.isAdminObserver) {
+			socket.emit('admin-error', 'Admin-Verifikation erforderlich.');
+			return;
+		}
+		const playerName = sanitizeText(data?.playerName, '', 16);
+		const reason = sanitizeText(data?.reason, '', 80);
+		if (!playerName) {
+			socket.emit('admin-error', 'Bitte waehle einen Spieler aus.');
+			return;
+		}
+		const ban = { name: playerName, reason, bannedAt: Date.now() };
+		bans.set(profileKey(playerName), ban);
+		saveBans();
+		for (const room of rooms.values()) {
+			for (const player of room) {
+				if (profileKey(player.name) === profileKey(playerName)) {
+					io.to(player.id).emit('room-error', `Du wurdest gesperrt${reason ? `: ${reason}` : '.'}`);
+					io.sockets.sockets.get(player.id)?.disconnect(true);
+				}
+			}
+		}
+		socket.emit('admin-success', `${playerName} wurde gesperrt.`);
+		socket.emit('admin-ban-list', getBanList());
+	});
+
+	socket.on('admin-unban-player', data => {
+		if (!socket.isAdminObserver) {
+			socket.emit('admin-error', 'Admin-Verifikation erforderlich.');
+			return;
+		}
+		const playerName = sanitizeText(data?.playerName, '', 16);
+		if (!playerName || !bans.delete(profileKey(playerName))) {
+			socket.emit('admin-error', 'Dieser Spieler ist nicht gesperrt.');
+			return;
+		}
+		saveBans();
+		socket.emit('admin-success', `${playerName} wurde entsperrt.`);
+		socket.emit('admin-ban-list', getBanList());
 	});
 
 	socket.on('player-move', state => {
