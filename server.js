@@ -84,29 +84,36 @@ function profileKey(name) {
 
 function getOrCreateProfile(name) {
 	const key = profileKey(name);
-	if (!profiles.has(key)) profiles.set(key, { name, friends: [], lastSeen: Date.now(), netWorth: 0 });
+	if (!profiles.has(key)) profiles.set(key, { name, friends: [], lastSeen: Date.now(), netWorth: 0, level: 1 });
 	return profiles.get(key);
 }
 
 function serializeProfile(profile) {
 	return {
 		name: profile.name,
+		level: profile.level || 1,
 		online: (profileSockets.get(profileKey(profile.name))?.size || 0) > 0,
 		lastSeen: profile.lastSeen,
 		friends: profile.friends.map(friendKey => {
 			const friend = profiles.get(friendKey);
 			return friend
-				? { name: friend.name, online: (profileSockets.get(friendKey)?.size || 0) > 0, lastSeen: friend.lastSeen }
-				: { name: friendKey, online: false, lastSeen: null };
+				? { name: friend.name, level: friend.level || 1, online: (profileSockets.get(friendKey)?.size || 0) > 0, lastSeen: friend.lastSeen }
+				: { name: friendKey, level: 1, online: false, lastSeen: null };
 		})
 	};
 }
 
-function registerProfile(socket, rawName) {
+function registerProfile(socket, rawName, rawLevel) {
 	const name = sanitizeText(rawName, 'Spieler', 16);
-	if (socket.profileKey === profileKey(name)) return getOrCreateProfile(name);
+	const level = Math.max(1, Math.min(999, Math.floor(Number(rawLevel) || 1)));
+	if (socket.profileKey === profileKey(name)) {
+		const profile = getOrCreateProfile(name);
+		profile.level = level;
+		return profile;
+	}
 	if (socket.profileKey) unregisterProfile(socket);
 	const profile = getOrCreateProfile(name);
+	profile.level = level;
 	const key = profileKey(profile.name);
 	if (!profileSockets.has(key)) profileSockets.set(key, new Set());
 	profileSockets.get(key).add(socket.id);
@@ -147,7 +154,7 @@ io.on('connection', socket => {
 			socket.emit('profile-error', `Du bist gesperrt${ban.reason ? `: ${ban.reason}` : '.'}`);
 			return;
 		}
-		const profile = registerProfile(socket, playerName);
+		const profile = registerProfile(socket, playerName, data?.level);
 		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
 		socket.emit('leaderboard-updated', getLeaderboard());
 	});
@@ -195,7 +202,7 @@ io.on('connection', socket => {
 			socket.emit('room-error', `Du bist gesperrt${ban.reason ? `: ${ban.reason}` : '.'}`);
 			return;
 		}
-		registerProfile(socket, playerName);
+		registerProfile(socket, playerName, data?.level);
 		if (!requestedRoom) {
 			socket.emit('room-error', 'Bitte gib einen Raumcode ein.');
 			return;
@@ -207,7 +214,7 @@ io.on('connection', socket => {
 			return;
 		}
 
-		const player = { id: socket.id, name: playerName, x: 0, z: 0, rotation: 0 };
+		const player = { id: socket.id, name: playerName, level: Math.max(1, Math.floor(Number(data?.level) || 1)), x: 0, z: 0, rotation: 0 };
 		room.push(player);
 		rooms.set(requestedRoom, room);
 		roomCode = requestedRoom;

@@ -44,6 +44,8 @@
 				<section id="profilePanel" class="startMenuSection" aria-labelledby="profileTitle">
 					<h3 id="profileTitle">Spielerprofil</h3>
 					<p id="profileName">Spieler</p>
+					<p id="levelProgress" class="levelProgress"></p>
+					<div id="dailyMissionList" class="dailyMissionList" aria-label="Taegliche Missionen"></div>
 					<label class="multiplayerField" for="friendNameInput">Freund hinzufuegen
 						<input id="friendNameInput" type="text" maxlength="16" autocomplete="off" placeholder="Spielername">
 					</label>
@@ -218,6 +220,10 @@
 			<button id="phoneTaxiBtn" type="button">Taxi</button>
 			<button id="phoneEmergencyBtn" type="button">Notruf</button>
 		</div>
+		<section id="phoneLevelSummary" aria-label="Level und taegliche Missionen">
+			<p id="phoneLevelDisplay"></p>
+		<div id="phoneMissionsList"></div>
+		</section>
 		<p id="phoneStatus">Karte, Inventar und Quests immer dabei.</p>
 	</div>
 	<div id="fullMapPanel" style="display: none;" aria-label="Stadtkarte">

@@ -223,6 +223,24 @@ h1 {
 	color: #a6e7ae;
 	font-weight: bold;
 }
+.levelProgress {
+	margin: 5px 0 10px;
+	color: #f6d878;
+	font-size: 0.82rem;
+	font-weight: bold;
+}
+.dailyMissionList {
+	display: grid;
+	gap: 5px;
+	margin: 0 0 12px;
+	padding: 8px;
+	border-left: 2px solid #80b9d3;
+	background: rgba(16, 39, 51, 0.55);
+	color: #d5e4ec;
+	font-size: 0.75rem;
+}
+.dailyMissionTitle { color: #a6e7ae; font-weight: bold; }
+.dailyMissionDone { color: #f6d878; }
 .multiplayerField {
 	display: block;
 	margin: 9px 0;
@@ -942,6 +960,27 @@ body.player-banned > :not(#banLockOverlay) {
 #phoneTaxiBtn:hover { background: #bd841c !important; }
 #phoneEmergencyBtn { border-color: #c65151 !important; background: #7a3038 !important; }
 #phoneEmergencyBtn:hover { background: #9b3b45 !important; }
+#phoneLevelSummary {
+	margin: 12px 0;
+	padding: 10px;
+	border: 1px solid rgba(128, 185, 211, 0.42);
+	border-radius: 5px;
+	background: rgba(21, 49, 64, 0.7);
+}
+#phoneLevelDisplay {
+	margin: 0 0 7px;
+	color: #f6d878;
+	font-size: 0.84rem;
+	font-weight: bold;
+}
+#phoneMissionsList {
+	display: grid;
+	gap: 4px;
+	color: #c8e2ef;
+	font-size: 0.74rem;
+	line-height: 1.35;
+}
+.phoneMissionDone { color: #a6e7ae; }
 #phoneStatus { min-height: 2.5em; color: #b9d7e7; font-size: 0.85rem; line-height: 1.35; }
 #fullMapPanel {
 	position: fixed;

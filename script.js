@@ -893,6 +893,10 @@ const ADMIN_ACCESS_CODE = 'FREECITY-ADMIN';
 const ADMIN_MONEY_AMOUNT = 999999999;
 let money = parseInt(getGameData('money')) || 0;
 let bankMoney = parseInt(getGameData('bankMoney')) || 0;
+let playerLevel = Math.max(1, Number(getGameData('playerLevel')) || 1);
+let playerXP = Math.max(0, Number(getGameData('playerXP')) || 0);
+let dailyMissionDate = getGameData('dailyMissionDate') || '';
+let dailyMissions = JSON.parse(getGameData('dailyMissions') || '[]');
 if (money === ADMIN_MONEY_AMOUNT && bankMoney === ADMIN_MONEY_AMOUNT) {
 	money = 0;
 	bankMoney = 0;
@@ -932,6 +936,66 @@ let playerHouses = [];
 let ownedProperties = JSON.parse(getGameData('ownedProperties') || '[]');
 let realEstateDay = Number(getGameData('realEstateDay')) || 0;
 let realEstateActiveDay = Number(getGameData('realEstateActiveDay')) || -1;
+
+function getXpNeededForNextLevel() {
+	return 80 + (playerLevel - 1) * 40;
+}
+
+function getTodayKey() {
+	return new Date().toISOString().slice(0, 10);
+}
+
+function resetDailyMissionsIfNeeded() {
+	const today = getTodayKey();
+	if (dailyMissionDate === today && dailyMissions.length) return;
+	dailyMissionDate = today;
+	dailyMissions = [
+		{ id: 'jobs', title: 'Taeglicher Einsatz', description: 'Schliesse 2 Jobs ab', progress: 0, goal: 2, rewardXp: 35, completed: false },
+		{ id: 'quests', title: 'Helfende Hand', description: 'Schliesse 1 Quest ab', progress: 0, goal: 1, rewardXp: 30, completed: false },
+		{ id: 'activity', title: 'Stadtaktiv', description: 'Schliesse insgesamt 3 Jobs oder Quests ab', progress: 0, goal: 3, rewardXp: 50, completed: false }
+	];
+}
+
+function updateDailyMissionProgress(id, amount = 1) {
+	resetDailyMissionsIfNeeded();
+	for (const mission of dailyMissions) {
+		if (mission.id !== id && mission.id !== 'activity') continue;
+		if (mission.completed) continue;
+		mission.progress = Math.min(mission.goal, mission.progress + amount);
+		if (mission.progress >= mission.goal) {
+			mission.completed = true;
+			gainXP(mission.rewardXp, `Tagesmission: ${mission.title}`);
+			showMessage(`Tagesmission erledigt: ${mission.title} (+${mission.rewardXp} XP)`, 3000);
+		}
+	}
+	renderLevelProfile();
+}
+
+function grantLevelReward(level) {
+	const rewardRoll = Math.random();
+	const rareChance = Math.min(0.18 + level * 0.025, 0.65);
+	if (rewardRoll < rareChance) {
+		foodInventory.prisonFreeCard = (foodInventory.prisonFreeCard || 0) + 2;
+		return 'selten: 2 Gefaengnis-Freikarten';
+	}
+	const moneyReward = 100 + level * 75;
+	money += moneyReward;
+	moneySpan.textContent = `Geld: ${money} €`;
+	return `${moneyReward} €`;
+}
+
+function gainXP(amount, source = '') {
+	if (!Number.isFinite(amount) || amount <= 0) return;
+	playerXP += Math.floor(amount);
+	while (playerXP >= getXpNeededForNextLevel()) {
+		playerXP -= getXpNeededForNextLevel();
+		playerLevel += 1;
+		const reward = grantLevelReward(playerLevel);
+		showMessage(`Level ${playerLevel} erreicht! Belohnung: ${reward}`, 4000);
+	}
+	renderLevelProfile();
+	syncPlayerLevel();
+}
 
 const realEstateCatalog = [
 	{ id: 'apartment-a', buildingLabel: 'Immobilie A', name: 'Wohnanlage A', price: 4500000, dailyIncome: 50000 },
@@ -1054,6 +1118,8 @@ function completeQuest(quest) {
 	// Belohnungen geben
 	money += questTypes[quest.type].rewards.money;
 	foodInventory.prisonFreeCard = (foodInventory.prisonFreeCard || 0) + 1;
+	gainXP(questTypes[quest.type].rewards.exp, 'Quest');
+	updateDailyMissionProgress('quests');
 	saveData();
 	renderInventory();
 	showMessage(`Quest abgeschlossen! +${questTypes[quest.type].rewards.money}€ und eine Gefängnis-Freikarte!`, 3500);
@@ -1148,6 +1214,10 @@ function saveData() {
 		setGameData('money', money);
 		setGameData('bankMoney', bankMoney);
 	}
+	setGameData('playerLevel', playerLevel);
+	setGameData('playerXP', playerXP);
+	setGameData('dailyMissionDate', dailyMissionDate);
+	setGameData('dailyMissions', JSON.stringify(dailyMissions));
 	setGameData('npcBankMoney', npcBankMoney);
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
@@ -3988,6 +4058,8 @@ function setupStartScreen() {
 	let phoneMode = false;
 	roomCodeInput.value = Math.random().toString(36).slice(2, 8).toUpperCase();
 	startMoney.textContent = `Geld: ${money} €`;
+	resetDailyMissionsIfNeeded();
+	renderLevelProfile();
 	upgradeNotificationBadge.hidden = getGameData('tutorialUpgradesReadVersion') === TUTORIAL_UPGRADE_VERSION;
 	connectToLobby();
 	tutorialBtn.addEventListener('click', () => {
@@ -4062,19 +4134,22 @@ function setupStartScreen() {
 	}
 }
 
-function createPlayerNameLabel(name) {
+function createPlayerNameLabel(name, level = 1) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 256;
-	canvas.height = 64;
+	canvas.height = 80;
 	const context = canvas.getContext('2d');
 	context.fillStyle = 'rgba(8, 18, 28, 0.8)';
-	context.fillRect(0, 4, 256, 56);
+	context.fillRect(0, 4, 256, 72);
 	context.fillStyle = '#ffffff';
 	context.font = 'bold 28px Arial';
 	context.textAlign = 'center';
-	context.fillText(name, 128, 42);
+	context.fillText(name, 128, 38);
+	context.fillStyle = '#f6d878';
+	context.font = 'bold 16px Arial';
+	context.fillText(`Level ${level}`, 128, 62);
 	const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }));
-	label.scale.set(3.5, 0.9, 1);
+	label.scale.set(3.5, 1.15, 1);
 	label.position.y = 5.2;
 	return label;
 }
@@ -4088,7 +4163,7 @@ function showRemotePlayer(playerData) {
 	}
 	const mesh = createHuman();
 	mesh.position.set(playerData.x || 0, 0, playerData.z || 0);
-	mesh.add(createPlayerNameLabel(playerData.name || 'Freund'));
+	mesh.add(createPlayerNameLabel(playerData.name || 'Freund', playerData.level || 1));
 	remotePlayers.set(playerData.id, { mesh, target: { ...playerData } });
 	remotePlayer = mesh;
 	remotePlayerId = playerData.id;
@@ -4349,7 +4424,8 @@ function showProfilePreview(profile) {
 }
 
 function renderOwnProfile(profile) {
-	profileName.textContent = profile.name;
+	profileName.textContent = `${profile.name} - Level ${playerLevel}`;
+	renderLevelProfile();
 	friendsList.replaceChildren();
 	if (!profile.friends.length) {
 		friendsList.textContent = 'Noch keine Freunde hinzugefuegt.';
@@ -4370,8 +4446,46 @@ function renderOwnProfile(profile) {
 	});
 }
 
+function renderLevelProfile() {
+	const levelProgress = document.getElementById('levelProgress');
+	const dailyMissionList = document.getElementById('dailyMissionList');
+	if (levelProgress) levelProgress.textContent = `XP: ${playerXP} / ${getXpNeededForNextLevel()} bis Level ${playerLevel + 1}`;
+	if (!dailyMissionList) return;
+	resetDailyMissionsIfNeeded();
+	dailyMissionList.replaceChildren();
+	const title = document.createElement('div');
+	title.className = 'dailyMissionTitle';
+	title.textContent = 'Taegliche Missionen';
+	dailyMissionList.appendChild(title);
+	for (const mission of dailyMissions) {
+		const row = document.createElement('div');
+		row.className = mission.completed ? 'dailyMissionDone' : '';
+		row.textContent = `${mission.completed ? 'Erledigt' : `${mission.progress}/${mission.goal}`} - ${mission.description} (+${mission.rewardXp} XP)`;
+		dailyMissionList.appendChild(row);
+	}
+	renderPhoneLevelSummary();
+}
+
+function renderPhoneLevelSummary() {
+	const phoneLevelDisplay = document.getElementById('phoneLevelDisplay');
+	const phoneMissionsList = document.getElementById('phoneMissionsList');
+	if (phoneLevelDisplay) phoneLevelDisplay.textContent = `Level ${playerLevel} | XP ${playerXP}/${getXpNeededForNextLevel()}`;
+	if (!phoneMissionsList) return;
+	phoneMissionsList.replaceChildren();
+	for (const mission of dailyMissions) {
+		const row = document.createElement('div');
+		row.className = mission.completed ? 'phoneMissionDone' : '';
+		row.textContent = `${mission.completed ? 'Erledigt' : `${mission.progress}/${mission.goal}`} - ${mission.title} (+${mission.rewardXp} XP)`;
+		phoneMissionsList.appendChild(row);
+	}
+}
+
 function registerCurrentProfile() {
-	if (lobbySocket?.connected) lobbySocket.emit('register-profile', { playerName: currentPlayerName() });
+	if (lobbySocket?.connected) lobbySocket.emit('register-profile', { playerName: currentPlayerName(), level: playerLevel });
+}
+
+function syncPlayerLevel() {
+	registerCurrentProfile();
 }
 
 const multiplayerServerUrl = ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -4451,7 +4565,7 @@ function connectToMultiplayerRoom() {
 		transports: ['polling'],
 		upgrade: false
 	});
-	const joinRoom = () => multiplayerSocket.emit('join-room', { roomCode, playerName });
+	const joinRoom = () => multiplayerSocket.emit('join-room', { roomCode, playerName, level: playerLevel });
 	if (multiplayerSocket.connected) joinRoom();
 	else multiplayerSocket.once('connect', joinRoom);
 	multiplayerSocket.on('room-joined', data => {
@@ -5600,6 +5714,8 @@ function openPhone() {
 		showMessage('Du bist bewusstlos und wirst bereits versorgt.', 2500);
 		return;
 	}
+	resetDailyMissionsIfNeeded();
+	renderPhoneLevelSummary();
 	phonePanel.style.display = 'block';
 	setPhoneStatus('Karte, Inventar und Quests immer dabei.');
 }
@@ -5866,6 +5982,8 @@ function completeJob(jobType, successMessage) {
 	moneySpan.textContent = `Geld: ${money} €`;
 	jobEarnings[jobType] += jobSalarySteps[jobType];
 	foodInventory.prisonFreeCard = (foodInventory.prisonFreeCard || 0) + 1;
+	gainXP(20, 'Job');
+	updateDailyMissionProgress('jobs');
 	refreshJobButtonLabels();
 	saveData();
 	renderInventory();
