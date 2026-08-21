@@ -259,6 +259,14 @@ h1 {
 	color: #fff;
 	font: inherit;
 }
+.playerNameStatus {
+	min-height: 1.2em;
+	margin: -3px 0 9px;
+	color: #b9cad6;
+	font-size: 0.78rem;
+}
+.playerNameStatus.available { color: #a6e7ae; }
+.playerNameStatus.unavailable { color: #ff9b92; }
 #liveRooms {
 	margin: 0;
 	padding-top: 20px;

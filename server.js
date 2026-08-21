@@ -18,6 +18,7 @@ const profileSockets = new Map();
 const maxPlayersPerRoom = 2;
 const adminObserverCode = process.env.ADMIN_OBSERVER_CODE || 'FREECITY-ADMIN';
 const bansFilePath = path.join(__dirname, 'bans.json');
+const profilesFilePath = path.join(__dirname, 'profiles.json');
 const bans = new Map();
 
 app.use(express.static(__dirname));
@@ -45,6 +46,24 @@ function saveBans() {
 	}
 }
 
+function loadProfiles() {
+	try {
+		if (!fs.existsSync(profilesFilePath)) return;
+		const savedProfiles = JSON.parse(fs.readFileSync(profilesFilePath, 'utf8'));
+		if (Array.isArray(savedProfiles)) profiles.set(savedProfiles);
+	} catch (error) {
+		console.error('Profile konnten nicht geladen werden.', error);
+	}
+}
+
+function saveProfiles() {
+	try {
+		fs.writeFileSync(profilesFilePath, JSON.stringify([...profiles.entries()], null, 2));
+	} catch (error) {
+		console.error('Profile konnten nicht gespeichert werden.', error);
+	}
+}
+
 function getBan(name) {
 	return bans.get(profileKey(name));
 }
@@ -54,6 +73,7 @@ function getBanList() {
 }
 
 loadBans();
+loadProfiles();
 
 function getLiveRooms() {
 	return [...rooms.entries()].map(([code, players]) => ({
@@ -70,8 +90,7 @@ function broadcastLiveRooms() {
 function getLeaderboard() {
 	return [...profiles.values()]
 		.sort((first, second) => second.netWorth - first.netWorth || first.name.localeCompare(second.name, 'de'))
-		.slice(0, 10)
-		.map(profile => ({ name: profile.name, netWorth: profile.netWorth }));
+		.map(profile => ({ name: profile.name, level: profile.level || 1, netWorth: profile.netWorth }));
 }
 
 function broadcastLeaderboard() {
@@ -82,9 +101,9 @@ function profileKey(name) {
 	return name.toLocaleLowerCase('de-DE');
 }
 
-function getOrCreateProfile(name) {
+function getOrCreateProfile(name, ownerId = '') {
 	const key = profileKey(name);
-	if (!profiles.has(key)) profiles.set(key, { name, friends: [], lastSeen: Date.now(), netWorth: 0, level: 1 });
+	if (!profiles.has(key)) profiles.set(key, { name, ownerId, friends: [], lastSeen: Date.now(), netWorth: 0, level: 1 });
 	return profiles.get(key);
 }
 
@@ -103,21 +122,28 @@ function serializeProfile(profile) {
 	};
 }
 
-function registerProfile(socket, rawName, rawLevel) {
+function registerProfile(socket, rawName, rawLevel, rawPlayerId) {
 	const name = sanitizeText(rawName, 'Spieler', 16);
 	const level = Math.max(1, Math.min(999, Math.floor(Number(rawLevel) || 1)));
+	const playerId = String(rawPlayerId || '').slice(0, 80);
+	if (!playerId) return null;
 	if (socket.profileKey === profileKey(name)) {
-		const profile = getOrCreateProfile(name);
+		const profile = getOrCreateProfile(name, playerId);
 		profile.level = level;
+		saveProfiles();
 		return profile;
 	}
+	const existingProfile = profiles.get(profileKey(name));
+	if (existingProfile && existingProfile.ownerId && existingProfile.ownerId !== playerId) return null;
 	if (socket.profileKey) unregisterProfile(socket);
-	const profile = getOrCreateProfile(name);
+	const profile = getOrCreateProfile(name, playerId);
+	profile.ownerId = playerId;
 	profile.level = level;
 	const key = profileKey(profile.name);
 	if (!profileSockets.has(key)) profileSockets.set(key, new Set());
 	profileSockets.get(key).add(socket.id);
 	socket.profileKey = key;
+	saveProfiles();
 	io.emit('profiles-updated');
 	return profile;
 }
@@ -130,6 +156,7 @@ function unregisterProfile(socket) {
 		profileSockets.delete(socket.profileKey);
 		const profile = profiles.get(socket.profileKey);
 		if (profile) profile.lastSeen = Date.now();
+		saveProfiles();
 	}
 	socket.profileKey = null;
 	io.emit('profiles-updated');
@@ -154,9 +181,25 @@ io.on('connection', socket => {
 			socket.emit('profile-error', `Du bist gesperrt${ban.reason ? `: ${ban.reason}` : '.'}`);
 			return;
 		}
-		const profile = registerProfile(socket, playerName, data?.level);
+		const profile = registerProfile(socket, playerName, data?.level, data?.playerId);
+		if (!profile) {
+			socket.emit('name-availability', { playerName, available: false, message: 'Dieser Name ist bereits vergeben.' });
+			return;
+		}
+		socket.emit('name-availability', { playerName, available: true, message: 'Name ist verfuegbar.' });
 		socket.emit('profile-data', { profile: serializeProfile(profile), own: true });
-		socket.emit('leaderboard-updated', getLeaderboard());
+		broadcastLeaderboard();
+	});
+	socket.on('check-name-availability', data => {
+		const playerName = sanitizeText(data?.playerName, '', 16);
+		const playerId = String(data?.playerId || '').slice(0, 80);
+		const profile = playerName ? profiles.get(profileKey(playerName)) : null;
+		const available = Boolean(playerName && playerId && (!profile || !profile.ownerId || profile.ownerId === playerId));
+		socket.emit('name-availability', {
+			playerName,
+			available,
+			message: available ? 'Name ist verfuegbar.' : 'Dieser Name ist bereits vergeben.'
+		});
 	});
 	socket.on('update-wealth', data => {
 		if (!socket.profileKey) return;
@@ -165,6 +208,7 @@ io.on('connection', socket => {
 		const profile = profiles.get(socket.profileKey);
 		if (!profile) return;
 		profile.netWorth = Math.floor(netWorth);
+		saveProfiles();
 		broadcastLeaderboard();
 	});
 	socket.on('get-leaderboard', () => socket.emit('leaderboard-updated', getLeaderboard()));
@@ -202,7 +246,11 @@ io.on('connection', socket => {
 			socket.emit('room-error', `Du bist gesperrt${ban.reason ? `: ${ban.reason}` : '.'}`);
 			return;
 		}
-		registerProfile(socket, playerName, data?.level);
+		const profile = registerProfile(socket, playerName, data?.level, data?.playerId);
+		if (!profile) {
+			socket.emit('room-error', 'Dieser Name ist bereits vergeben.');
+			return;
+		}
 		if (!requestedRoom) {
 			socket.emit('room-error', 'Bitte gib einen Raumcode ein.');
 			return;

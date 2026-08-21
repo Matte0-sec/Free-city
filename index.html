@@ -31,10 +31,11 @@
 					<label class="multiplayerField" for="playerNameInput">Dein Name
 						<input id="playerNameInput" type="text" value="Spieler" maxlength="16" autocomplete="nickname">
 					</label>
+					<p id="playerNameStatus" class="playerNameStatus" aria-live="polite">Name wird geprueft...</p>
 					<label class="multiplayerField" for="roomCodeInput">Privater Raumcode
 						<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
 					</label>
-					<button id="startGameBtn" type="button">Spiel starten</button>
+					<button id="startGameBtn" type="button" disabled>Spiel starten</button>
 					<button id="tutorialBtn" type="button">Tutorial <span id="upgradeNotificationBadge" class="upgradeNotificationBadge" hidden aria-label="Neue Upgrades">!</span></button>
 				</section>
 				<section id="liveRooms" class="startMenuSection" aria-labelledby="liveRoomsTitle">

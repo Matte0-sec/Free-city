@@ -59,6 +59,7 @@ const upgradeNotificationBadge = document.getElementById('upgradeNotificationBad
 const tutorialDialog = document.getElementById('tutorialDialog');
 const closeTutorialBtn = document.getElementById('closeTutorialBtn');
 const playerNameInput = document.getElementById('playerNameInput');
+const playerNameStatus = document.getElementById('playerNameStatus');
 const roomCodeInput = document.getElementById('roomCodeInput');
 const liveRoomsList = document.getElementById('liveRoomsList');
 const profileName = document.getElementById('profileName');
@@ -127,6 +128,17 @@ function getGameData(key) {
 function setGameData(key, value) {
 	localStorage.setItem(key, value);
 }
+
+function getPlayerIdentity() {
+	let playerId = getGameData('playerIdentity');
+	if (!playerId) {
+		playerId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+		setGameData('playerIdentity', playerId);
+	}
+	return playerId;
+}
+
+const playerIdentity = getPlayerIdentity();
 
 const TUTORIAL_UPGRADE_VERSION = '2026-08-combat-traffic-social';
 
@@ -3699,6 +3711,8 @@ const remotePlayers = new Map();
 let isObserverMode = false;
 let isServerAdminVerified = false;
 let isPlayerBanned = false;
+let isPlayerNameAvailable = false;
+let completeVerifiedStart = null;
 let lastMultiplayerUpdate = 0;
 
 const fashionCatalog = {
@@ -4067,7 +4081,7 @@ function setupStartScreen() {
 		markTutorialUpgradesAsRead();
 	});
 	closeTutorialBtn.addEventListener('click', () => { tutorialDialog.hidden = true; });
-	playerNameInput.addEventListener('change', registerCurrentProfile);
+	playerNameInput.addEventListener('input', checkPlayerNameAvailability);
 	addFriendBtn.addEventListener('click', () => {
 		const friendName = friendNameInput.value.trim();
 		if (!friendName) {
@@ -4101,6 +4115,14 @@ function setupStartScreen() {
 	});
 
 	startGameBtn.addEventListener('click', () => {
+		if (!isPlayerNameAvailable) {
+			showMessage('Waehle zuerst einen verfuegbaren Spielernamen.', 2500);
+			return;
+		}
+		completeVerifiedStart?.();
+	});
+
+	completeVerifiedStart = () => {
 		isObserverMode = false;
 		player.visible = true;
 		chatInput.disabled = false;
@@ -4114,7 +4136,7 @@ function setupStartScreen() {
 		saveData();
 		startOverlay.style.display = 'none';
 		connectToMultiplayerRoom();
-	});
+	};
 
 	try {
 		const previewScene = new THREE.Scene();
@@ -4481,7 +4503,19 @@ function renderPhoneLevelSummary() {
 }
 
 function registerCurrentProfile() {
-	if (lobbySocket?.connected) lobbySocket.emit('register-profile', { playerName: currentPlayerName(), level: playerLevel });
+	if (lobbySocket?.connected) {
+		lobbySocket.emit('register-profile', { playerName: currentPlayerName(), level: playerLevel, playerId: playerIdentity });
+	}
+}
+
+function checkPlayerNameAvailability() {
+	isPlayerNameAvailable = false;
+	startGameBtn.disabled = true;
+	playerNameStatus.className = 'playerNameStatus';
+	playerNameStatus.textContent = 'Name wird geprueft...';
+	if (lobbySocket?.connected) {
+		lobbySocket.emit('check-name-availability', { playerName: currentPlayerName(), playerId: playerIdentity });
+	}
 }
 
 function syncPlayerLevel() {
@@ -4533,6 +4567,13 @@ function connectToLobby() {
 		if (isObserverMode) removeRemotePlayer(data.id);
 	});
 	lobbySocket.on('leaderboard-updated', renderLeaderboard);
+	lobbySocket.on('name-availability', data => {
+		if (data.playerName !== currentPlayerName()) return;
+		isPlayerNameAvailable = Boolean(data.available);
+		startGameBtn.disabled = !isPlayerNameAvailable;
+		playerNameStatus.className = `playerNameStatus ${isPlayerNameAvailable ? 'available' : 'unavailable'}`;
+		playerNameStatus.textContent = data.message;
+	});
 	lobbySocket.on('profile-data', data => {
 		if (data.own) {
 			renderOwnProfile(data.profile);
@@ -4565,7 +4606,7 @@ function connectToMultiplayerRoom() {
 		transports: ['polling'],
 		upgrade: false
 	});
-	const joinRoom = () => multiplayerSocket.emit('join-room', { roomCode, playerName, level: playerLevel });
+	const joinRoom = () => multiplayerSocket.emit('join-room', { roomCode, playerName, level: playerLevel, playerId: playerIdentity });
 	if (multiplayerSocket.connected) joinRoom();
 	else multiplayerSocket.once('connect', joinRoom);
 	multiplayerSocket.on('room-joined', data => {
