@@ -351,6 +351,26 @@ h1 {
 	background: #365b3b;
 	font-size: 0.72rem;
 }
+.banLockOverlay {
+	position: fixed;
+	inset: 0;
+	z-index: 20000;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+	background: rgba(5, 8, 11, 0.96);
+	color: #fff;
+	text-align: center;
+}
+.banLockOverlayContent {
+	max-width: 420px;
+	padding: 30px;
+	border: 1px solid #c95f57;
+	border-radius: 7px;
+	background: #22191a;
+}
+.banLockOverlay h2 { margin: 0 0 10px; color: #ff8178; }
+.banLockOverlay p { margin: 0; color: #eadbdd; line-height: 1.5; }
 .liveRoomCount {
 	color: #a6e7ae;
 }

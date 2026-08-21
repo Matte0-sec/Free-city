@@ -257,6 +257,7 @@ io.on('connection', socket => {
 		for (const room of rooms.values()) {
 			for (const player of room) {
 				if (profileKey(player.name) === profileKey(playerName)) {
+					io.to(player.id).emit('player-banned', { reason });
 					io.to(player.id).emit('room-error', `Du wurdest gesperrt${reason ? `: ${reason}` : '.'}`);
 					io.sockets.sockets.get(player.id)?.disconnect(true);
 				}

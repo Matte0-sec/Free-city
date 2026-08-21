@@ -3628,6 +3628,7 @@ let remotePlayerTarget = null;
 const remotePlayers = new Map();
 let isObserverMode = false;
 let isServerAdminVerified = false;
+let isPlayerBanned = false;
 let lastMultiplayerUpdate = 0;
 
 const fashionCatalog = {
@@ -3877,9 +3878,19 @@ for (let i = 0; i < 8; i++) {
 // Steuerung
 let keys = {};
 document.addEventListener('keydown', e => {
+	if (isPlayerBanned) {
+		e.preventDefault();
+		return;
+	}
 	keys[e.key.toLowerCase()] = true;
 });
-document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+document.addEventListener('keyup', e => {
+	if (isPlayerBanned) {
+		e.preventDefault();
+		return;
+	}
+	keys[e.key.toLowerCase()] = false;
+});
 
 const mobileJoystick = document.getElementById('mobileJoystick');
 const mobileJoystickKnob = document.getElementById('mobileJoystickKnob');
@@ -3894,6 +3905,7 @@ let mobileControlsEnabled = false;
 let mobileInputsInitialized = false;
 
 function setMobileMovement(horizontal, vertical) {
+	if (isPlayerBanned) return;
 	keys['w'] = vertical < -0.25;
 	keys['s'] = vertical > 0.25;
 	keys['a'] = horizontal < -0.25;
@@ -3918,6 +3930,7 @@ function resetMobileJoystick() {
 }
 
 function triggerMobileKey(key) {
+	if (isPlayerBanned) return;
 	document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
 	document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
 }
@@ -3926,7 +3939,7 @@ function initializeMobileInputs() {
 	if (mobileInputsInitialized) return;
 	mobileInputsInitialized = true;
 	mobileJoystick.addEventListener('pointerdown', event => {
-		if (!mobileControlsEnabled) return;
+		if (!mobileControlsEnabled || isPlayerBanned) return;
 		mobileJoystickPointerId = event.pointerId;
 		mobileJoystick.setPointerCapture(event.pointerId);
 		updateMobileJoystick(event);
@@ -3938,7 +3951,7 @@ function initializeMobileInputs() {
 	mobileJoystick.addEventListener('pointercancel', resetMobileJoystick);
 
 	container.addEventListener('pointerdown', event => {
-		if (!mobileControlsEnabled) return;
+		if (!mobileControlsEnabled || isPlayerBanned) return;
 		if (event.target.closest('#mobileControls') || event.clientX < window.innerWidth * 0.42) return;
 		mobileCameraPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
 		container.setPointerCapture(event.pointerId);
@@ -4200,6 +4213,30 @@ function addChatMessage(message) {
 	}
 }
 
+function activateBanLock(reason = '') {
+	if (isPlayerBanned) return;
+	isPlayerBanned = true;
+	keys = {};
+	resetMobileJoystick();
+	mobileControlsEnabled = false;
+	document.body.classList.remove('mobile-controls-enabled');
+	vehicleSpeed = 0;
+	const existingOverlay = document.getElementById('banLockOverlay');
+	if (existingOverlay) existingOverlay.remove();
+	const overlay = document.createElement('section');
+	overlay.id = 'banLockOverlay';
+	overlay.className = 'banLockOverlay';
+	const content = document.createElement('div');
+	content.className = 'banLockOverlayContent';
+	const title = document.createElement('h2');
+	title.textContent = 'Du wurdest gesperrt';
+	const message = document.createElement('p');
+	message.textContent = reason ? `Grund: ${reason}` : 'Du kannst dieses Spiel nicht mehr benutzen.';
+	content.append(title, message);
+	overlay.appendChild(content);
+	document.body.appendChild(overlay);
+}
+
 chatToggleBtn.addEventListener('click', () => {
 	const isOpen = chatPanel.hidden;
 	chatPanel.hidden = !isOpen;
@@ -4435,7 +4472,11 @@ function connectToMultiplayerRoom() {
 		multiplayerSocket.disconnect();
 		multiplayerSocket = null;
 	});
-	multiplayerSocket.on('room-error', message => showMessage(message, 3000));
+	multiplayerSocket.on('player-banned', data => activateBanLock(data?.reason));
+	multiplayerSocket.on('room-error', message => {
+		if (message.startsWith('Du bist gesperrt') || message.startsWith('Du wurdest gesperrt')) activateBanLock(message);
+		else showMessage(message, 3000);
+	});
 	multiplayerSocket.on('connect_error', () => showMessage('Multiplayer-Server nicht erreichbar.', 3500));
 }
 
@@ -4646,7 +4687,7 @@ function animate() {
 	// Geschwindigkeitsanzeige aktualisieren
 	updateSpeedDisplay();
 	
-	if (!isInVehicle && !isLyingInPlayerHouse && !unconsciousUntil && !burglaryAttempt) {
+	if (!isPlayerBanned && !isInVehicle && !isLyingInPlayerHouse && !unconsciousUntil && !burglaryAttempt) {
 		// Bewegung mit Kollisionsabfrage (relativ zur Kameraperspektive)
 		let speed = keys['shift'] ? 0.85 : 0.5;
 		let nextX = player.position.x;
@@ -7359,6 +7400,10 @@ function exitVehicle() {
 }
 
 function updateVehicleMovement() {
+	if (isPlayerBanned) {
+		vehicleSpeed = 0;
+		return;
+	}
 	if (!isInVehicle || !currentVehicle) return;
 	if (currentVehicleType === 'helicopter' || currentVehicleType === 'airplane') {
 		const maxSpeed = currentVehicleType === 'airplane' ? 5.8 : 3.8;
