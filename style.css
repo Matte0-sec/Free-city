@@ -362,6 +362,11 @@ h1 {
 	color: #fff;
 	text-align: center;
 }
+body.player-banned > :not(#banLockOverlay) {
+	filter: grayscale(1) brightness(0.45);
+	pointer-events: none;
+	user-select: none;
+}
 .banLockOverlayContent {
 	max-width: 420px;
 	padding: 30px;

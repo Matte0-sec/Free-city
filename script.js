@@ -4216,6 +4216,7 @@ function addChatMessage(message) {
 function activateBanLock(reason = '') {
 	if (isPlayerBanned) return;
 	isPlayerBanned = true;
+	document.body.classList.add('player-banned');
 	keys = {};
 	resetMobileJoystick();
 	mobileControlsEnabled = false;
@@ -4424,7 +4425,10 @@ function connectToLobby() {
 			friendStatus.textContent = '';
 		} else showProfilePreview(data.profile);
 	});
-	lobbySocket.on('profile-error', message => { friendStatus.textContent = message; });
+	lobbySocket.on('profile-error', message => {
+		if (message.startsWith('Du bist gesperrt') || message.startsWith('Du wurdest gesperrt')) activateBanLock(message);
+		else friendStatus.textContent = message;
+	});
 	lobbySocket.on('profiles-updated', () => lobbySocket.emit('get-profile', { playerName: currentPlayerName() }));
 	lobbySocket.on('connect_error', () => {
 		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
