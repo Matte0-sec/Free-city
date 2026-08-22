@@ -9,6 +9,55 @@ body {
 #gameContainer, #gameContainer canvas {
 	touch-action: none;
 }
+#businessPanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	z-index: 1400;
+	box-sizing: border-box;
+	width: min(470px, calc(100vw - 32px));
+	max-height: min(78vh, 620px);
+	overflow-y: auto;
+	padding: 22px;
+	transform: translate(-50%, -50%);
+	border: 1px solid #62bbb4;
+	border-radius: 7px;
+	background: rgba(10, 31, 34, 0.97);
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+	color: #ecfffd;
+	text-align: left;
+}
+#businessPanel h2 { margin: 0 0 8px; color: #7fe4da; }
+.businessIntro { margin: 0 0 14px; color: #c4e2df; line-height: 1.45; }
+.businessIdeaCard {
+	display: grid;
+	gap: 5px;
+	width: 100%;
+	margin: 8px 0;
+	padding: 13px;
+	border: 1px solid #4c8c89;
+	border-radius: 5px;
+	background: #173f42;
+	color: #fff;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.businessIdeaCard:hover { background: #20565a; }
+.businessIdeaCard strong { color: #7fe4da; }
+.businessIdeaCard small { color: #f1d787; }
+.businessStatus { margin: 14px 0; color: #d0e7e5; line-height: 1.45; }
+#businessPanel > button {
+	padding: 9px 12px;
+	border: 1px solid #5eb0aa;
+	border-radius: 4px;
+	background: #26736f;
+	color: #fff;
+	font: inherit;
+	cursor: pointer;
+}
+#businessPanel > button:disabled { opacity: 0.7; cursor: default; }
+#businessPanel .businessCloseButton { margin-left: 8px; border-color: #7a8d8c; background: #3d4b4b; }
 h1 {
 	margin-top: 10px;
 	position: absolute;

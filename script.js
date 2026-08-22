@@ -948,6 +948,14 @@ let playerHouses = [];
 let ownedProperties = JSON.parse(getGameData('ownedProperties') || '[]');
 let realEstateDay = Number(getGameData('realEstateDay')) || 0;
 let realEstateActiveDay = Number(getGameData('realEstateActiveDay')) || -1;
+let playerBusiness = JSON.parse(getGameData('playerBusiness') || 'null');
+
+const businessIdeas = [
+	{ id: 'cafe', name: 'Stadt-Cafe', description: 'Kaffee, Snacks und ein ruhiger Treffpunkt fuer NPCs.', planCost: 750, startupCost: 14000, dailyIncome: 950 },
+	{ id: 'delivery', name: 'Lieferdienst', description: 'Lokale Lieferungen fuer Geschaefte und Bewohner.', planCost: 1100, startupCost: 22000, dailyIncome: 1550 },
+	{ id: 'studio', name: 'Software-Studio', description: 'Digitale Produkte mit hohem Wachstumspotenzial.', planCost: 1800, startupCost: 35000, dailyIncome: 2600 }
+];
+let businessPanel = null;
 
 function getXpNeededForNextLevel() {
 	return 80 + (playerLevel - 1) * 40;
@@ -1242,6 +1250,7 @@ function saveData() {
 	setGameData('jobEarnings', JSON.stringify(jobEarnings || {}));
 	setGameData('ownedHouses', JSON.stringify(ownedHouses));
 	setGameData('ownedProperties', JSON.stringify(ownedProperties));
+	setGameData('playerBusiness', JSON.stringify(playerBusiness));
 	setGameData('realEstateDay', realEstateDay);
 	setGameData('realEstateActiveDay', realEstateActiveDay);
 	setGameData('tuningParts', JSON.stringify(tuningParts));
@@ -1357,16 +1366,117 @@ function tryOpenNearbyRealEstate() {
 }
 
 function payRealEstateIncomeForDay() {
-	if (realEstateActiveDay !== realEstateDay || ownedProperties.length === 0) return;
-	const income = ownedProperties.reduce((total, propertyId) => {
+	if (realEstateActiveDay !== realEstateDay) return;
+	const propertyIncome = ownedProperties.reduce((total, propertyId) => {
 		const property = realEstateCatalog.find(entry => entry.id === propertyId);
 		return total + (property?.dailyIncome || 0);
 	}, 0);
+	const businessIncome = playerBusiness?.stage === 'operating' ? playerBusiness.dailyIncome : 0;
+	const income = propertyIncome + businessIncome;
 	if (!income) return;
 	money += income;
 	moneySpan.textContent = `Geld: ${money} €`;
 	saveData();
-	showMessage(`Immobilieneinnahmen: +${formatEuro(income)}`, 3500);
+	const details = [
+		propertyIncome ? `Immobilien ${formatEuro(propertyIncome)}` : '',
+		businessIncome ? `${playerBusiness.name} ${formatEuro(businessIncome)}` : ''
+	].filter(Boolean).join(' | ');
+	showMessage(`Tageseinnahmen: +${formatEuro(income)} (${details})`, 3500);
+}
+
+function getBusinessIdea() {
+	return businessIdeas.find(idea => idea.id === playerBusiness?.ideaId);
+}
+
+function closeBusinessPanel() {
+	if (businessPanel) businessPanel.style.display = 'none';
+}
+
+function openBusinessPanel() {
+	if (!businessPanel) {
+		businessPanel = document.createElement('section');
+		businessPanel.id = 'businessPanel';
+		document.body.appendChild(businessPanel);
+	}
+	businessPanel.replaceChildren();
+	const title = document.createElement('h2');
+	title.textContent = 'Gruenderbuero';
+	const intro = document.createElement('p');
+	intro.className = 'businessIntro';
+	businessPanel.append(title, intro);
+
+	if (!playerBusiness) {
+		intro.textContent = 'Finde eine Geschaeftsidee. Danach planst, finanzierst und eroeffnest du dein Unternehmen.';
+		for (const idea of businessIdeas) {
+			const card = document.createElement('button');
+			card.type = 'button';
+			card.className = 'businessIdeaCard';
+			card.innerHTML = `<strong>${idea.name}</strong><span>${idea.description}</span><small>Planung ${formatEuro(idea.planCost)} | Startkapital ${formatEuro(idea.startupCost)}</small>`;
+			card.addEventListener('click', () => {
+				playerBusiness = { ideaId: idea.id, name: idea.name, dailyIncome: idea.dailyIncome, stage: 'idea' };
+				saveData();
+				openBusinessPanel();
+			});
+			businessPanel.appendChild(card);
+		}
+	} else {
+		const idea = getBusinessIdea();
+		intro.textContent = `${playerBusiness.name}: ${idea.description}`;
+		const status = document.createElement('p');
+		status.className = 'businessStatus';
+		businessPanel.appendChild(status);
+		const action = document.createElement('button');
+		action.type = 'button';
+		if (playerBusiness.stage === 'idea') {
+			status.textContent = 'Schritt 1 von 3: Erstelle einen Businessplan mit Zielgruppe und Finanzplanung.';
+			action.textContent = `Businessplan erstellen (${formatEuro(idea.planCost)})`;
+			action.addEventListener('click', () => advanceBusinessStage('plan', idea.planCost));
+		} else if (playerBusiness.stage === 'plan') {
+			status.textContent = 'Schritt 2 von 3: Der Plan steht. Stelle jetzt das Startkapital bereit.';
+			action.textContent = `Startkapital investieren (${formatEuro(idea.startupCost)})`;
+			action.addEventListener('click', () => advanceBusinessStage('funded', idea.startupCost));
+		} else if (playerBusiness.stage === 'funded') {
+			status.textContent = 'Schritt 3 von 3: Standort, Team und Eroeffnung sind bereit.';
+			action.textContent = 'Firma eroeffnen';
+			action.addEventListener('click', () => {
+				playerBusiness.stage = 'operating';
+				gainXP(80, 'Firmengruendung');
+				saveData();
+				showMessage(`${playerBusiness.name} ist eroeffnet! Taeglicher Ertrag: ${formatEuro(playerBusiness.dailyIncome)}.`, 4000);
+				openBusinessPanel();
+			});
+		} else {
+			status.textContent = `Deine Firma ist aktiv und erwirtschaftet ${formatEuro(playerBusiness.dailyIncome)} pro aktivem Spieltag.`;
+			action.textContent = 'Firma laeuft erfolgreich';
+			action.disabled = true;
+		}
+		businessPanel.appendChild(action);
+	}
+	const closeButton = document.createElement('button');
+	closeButton.type = 'button';
+	closeButton.className = 'businessCloseButton';
+	closeButton.textContent = 'Schliessen';
+	closeButton.addEventListener('click', closeBusinessPanel);
+	businessPanel.appendChild(closeButton);
+	businessPanel.style.display = 'block';
+}
+
+function advanceBusinessStage(nextStage, cost) {
+	if (money < cost) {
+		showMessage(`Du brauchst ${formatEuro(cost)}.`, 2500);
+		return;
+	}
+	money -= cost;
+	moneySpan.textContent = `Geld: ${money} €`;
+	playerBusiness.stage = nextStage;
+	saveData();
+	openBusinessPanel();
+}
+
+function tryOpenBusinessOffice() {
+	if (isInVehicle || Math.hypot(player.position.x - 260, player.position.z - 60) >= 20) return false;
+	openBusinessPanel();
+	return true;
 }
 
 function getAspect() {
@@ -2641,6 +2751,7 @@ const buildings = [
 	{ x: 140, z: -220, color: 0x4444aa, label: 'Polizei', houseType: 'colonial' },
 	{ x: -140, z: -220, color: 0xaa4444, label: 'Feuerwehr', houseType: 'tower' },
 	{ x: 260, z: 60, color: 0x555555, label: 'Büro', houseType: 'modern' },
+	{ x: 260, z: -60, color: 0x2d8f8d, label: 'Gruenderbuero', houseType: 'modern' },
 	{ x: -260, z: 60, color: 0x884488, label: 'Wohnung', houseType: 'flat' },
 	{ x: 100, z: 240, color: 0x448888, label: 'Hotel', houseType: 'modern' },
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
@@ -8384,6 +8495,7 @@ document.addEventListener('keydown', e => {
 	if (e.key.toLowerCase() === 'e') {
 		if (enterTaxi()) return;
 		if (tryOpenNearbyRealEstate()) return;
+		if (tryOpenBusinessOffice()) return;
 		if (!isInVehicle && Math.hypot(player.position.x - 80, player.position.z + 80) < 20) {
 			shopPanel.style.display = 'block';
 			return;
