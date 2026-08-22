@@ -1644,7 +1644,13 @@ window.addEventListener('resize', () => {
 });// Maussteuerung für Kamera (immer aktiv)
 
 function normalizeMapSearchText(text) {
-	return String(text || '').trim().toLowerCase();
+	return String(text || '')
+		.trim()
+		.toLowerCase()
+		.replace(/ä/g, 'ae')
+		.replace(/ö/g, 'oe')
+		.replace(/ü/g, 'ue')
+		.replace(/ß/g, 'ss');
 }
 
 function getMapSearchTargets() {
@@ -2751,7 +2757,7 @@ const buildings = [
 	{ x: 140, z: -220, color: 0x4444aa, label: 'Polizei', houseType: 'colonial' },
 	{ x: -140, z: -220, color: 0xaa4444, label: 'Feuerwehr', houseType: 'tower' },
 	{ x: 260, z: 60, color: 0x555555, label: 'Büro', houseType: 'modern' },
-	{ x: 260, z: -60, color: 0x2d8f8d, label: 'Gruenderbuero', houseType: 'modern' },
+	{ x: 260, z: -60, color: 0x2d8f8d, label: 'Gründerbüro', houseType: 'modern' },
 	{ x: -260, z: 60, color: 0x884488, label: 'Wohnung', houseType: 'flat' },
 	{ x: 100, z: 240, color: 0x448888, label: 'Hotel', houseType: 'modern' },
 	{ x: -100, z: 240, color: 0x888844, label: 'Bibliothek', houseType: 'colonial' },
