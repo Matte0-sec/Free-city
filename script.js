@@ -1400,7 +1400,7 @@ function openBusinessPanel() {
 	}
 	businessPanel.replaceChildren();
 	const title = document.createElement('h2');
-	title.textContent = 'Gruenderbuero';
+	title.textContent = 'Gründerbüro';
 	const intro = document.createElement('p');
 	intro.className = 'businessIntro';
 	businessPanel.append(title, intro);
@@ -1474,7 +1474,10 @@ function advanceBusinessStage(nextStage, cost) {
 }
 
 function tryOpenBusinessOffice() {
-	if (isInVehicle || Math.hypot(player.position.x - 260, player.position.z - 60) >= 20) return false;
+	if (isInVehicle) return false;
+	const isNearFounderOffice = Math.hypot(player.position.x - 260, player.position.z + 60) < 32;
+	const isNearOffice = Math.hypot(player.position.x - 260, player.position.z - 60) < 32;
+	if (!isNearFounderOffice && !isNearOffice) return false;
 	openBusinessPanel();
 	return true;
 }
