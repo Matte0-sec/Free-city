@@ -1214,7 +1214,8 @@ function updateQuestUI() {
 
 // Szene, Kamera, Renderer
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB); // Schöner blauer Himmel
+scene.background = new THREE.Color(0x9bc9e8);
+scene.fog = new THREE.Fog(0x9bc9e8, 300, 1050);
 
 // Initialisierung
 moneySpan.textContent = `Geld: ${money} €`;
@@ -1503,7 +1504,13 @@ const cameraTarget = new THREE.Vector3();
 let lastMouseX = null;
 let lastMouseY = null;
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
@@ -1762,9 +1769,10 @@ fullscreenBtn.addEventListener('click', () => {
 // Boden (noch größer)
 
 const groundGeo = new THREE.BoxGeometry(1800, 0.5, 1800);
-const groundMat = new THREE.MeshPhongMaterial({ color: 0x228822 });
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x3f7040, roughness: 0.94, metalness: 0 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.position.y = -0.25;
+ground.receiveShadow = true;
 scene.add(ground);
 
 // Straßen (als breite, dunkle Rechtecke)
@@ -2169,10 +2177,19 @@ function initCars() {
 initCars();
 
 // Licht
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+const ambientLight = new THREE.HemisphereLight(0xcfeaff, 0x35532e, 1.5);
 scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
-dirLight.position.set(10, 20, 10);
+const dirLight = new THREE.DirectionalLight(0xfff1d2, 2.2);
+dirLight.position.set(-220, 360, 140);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.left = -420;
+dirLight.shadow.camera.right = 420;
+dirLight.shadow.camera.top = 420;
+dirLight.shadow.camera.bottom = -420;
+dirLight.shadow.camera.near = 20;
+dirLight.shadow.camera.far = 850;
+dirLight.shadow.bias = -0.00015;
 scene.add(dirLight);
 
 
@@ -6154,6 +6171,12 @@ function setTimeSpeed(speed) {
 	}
 	showMessage(`⏱️ Zeitgeschwindigkeit: ${speedText}`, 2000);
 }
+
+scene.traverse(object => {
+	if (!object.isMesh) return;
+	object.castShadow = true;
+	object.receiveShadow = true;
+});
 
 animate();
 
