@@ -4160,6 +4160,13 @@ function spawnGangThieves() {
 	spawnPoints.forEach((position, index) => createThief(gangs[index % gangs.length], position));
 }
 
+function getTheftLocation() {
+	const locations = buildings.filter(building =>
+		['Supermarkt', 'Bank', 'Autohaus', 'Casino', 'Waffenladen', 'Modeshop'].includes(building.label)
+	);
+	return locations[Math.floor(Math.random() * locations.length)] || { x: 80, z: -80, label: 'Supermarkt' };
+}
+
 function updateGangThieves() {
 	for (const thief of thiefNpcs) {
 		const data = thief.userData;
@@ -4175,12 +4182,15 @@ function updateGangThieves() {
 			data.nextCrimeAt = Date.now() + 18000 + Math.random() * 18000;
 		} else data.target = getValidSpawn();
 		if (data.state === 'roaming' && Date.now() >= data.nextCrimeAt) {
+			const theftLocation = getTheftLocation();
 			data.state = 'fleeing';
+			data.crimeLocation = theftLocation;
+			thief.position.set(theftLocation.x, 0, theftLocation.z);
 			data.fleeTarget = getValidSpawn();
 			data.stolenAmount = 40 + Math.floor(Math.random() * 110);
-		gangStats[data.gang.id].thefts += 1;
-		saveData();
-			showMessage(`Diebstahl: Ein ${data.gang.name}-Dieb flieht mit ${data.stolenAmount} Euro!`, 4000);
+			gangStats[data.gang.id].thefts += 1;
+			saveData();
+			showMessage(`Diebstahl bei ${theftLocation.label} (${Math.round(theftLocation.x)}, ${Math.round(theftLocation.z)}): Ein ${data.gang.name}-Dieb flieht mit ${data.stolenAmount} Euro!`, 5500);
 		}
 	}
 }
