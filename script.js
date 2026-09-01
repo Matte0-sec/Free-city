@@ -1221,7 +1221,7 @@ function updateQuestUI() {
 // Szene, Kamera, Renderer
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9bc9e8);
-scene.fog = new THREE.Fog(0x9bc9e8, 300, 1050);
+scene.fog = new THREE.Fog(0x9bc9e8, 110, 440);
 
 // Initialisierung
 moneySpan.textContent = `Geld: ${money} €`;
@@ -1511,7 +1511,7 @@ let lastMouseX = null;
 let lastMouseY = null;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
@@ -1546,6 +1546,7 @@ minimapContainer.appendChild(minimapRenderer.domElement);
 const minimapCamera = new THREE.OrthographicCamera(-600, 600, 600, -600, 0.1, 1000);
 minimapCamera.position.set(0, 200, 0);
 minimapCamera.lookAt(0, 0, 0);
+let lastMinimapRenderAt = 0;
 
 const fullMapRenderer = new THREE.WebGLRenderer({ antialias: true });
 fullMapRenderer.setSize(900, 900);
@@ -4071,7 +4072,7 @@ function addNPCs(count) {
 	}
 }
 
-addNPCs(100);
+addNPCs(45);
 
 function getPoliceRankLabel() {
 	return { civilian: 'Zivilist', cadet: 'Cadet', trainee: 'Trainee', officer: 'Polizist' }[policeCareer.rank] || 'Zivilist';
@@ -5593,8 +5594,11 @@ function animate() {
 		minimapCamera.lookAt(0, 0, 0);
 	}
 
-	// Minimap rendern
-	minimapRenderer.render(scene, minimapCamera);
+	// Die Minikarte muss nicht in jedem Bild neu gezeichnet werden.
+	if (Date.now() - lastMinimapRenderAt >= 100) {
+		minimapRenderer.render(scene, minimapCamera);
+		lastMinimapRenderAt = Date.now();
+	}
 	if (fullMapPanel.style.display === 'flex') {
 		fullMapRenderer.render(scene, fullMapCamera);
 	}
