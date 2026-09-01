@@ -1075,6 +1075,28 @@ body.player-banned > :not(#banLockOverlay) {
 	cursor: pointer;
 }
 #phoneApps button:hover { background: #285b76; }
+#ui #inventoryBtn { display: none; }
+#phonePanel #mapNavigator {
+	position: static !important;
+	left: auto !important;
+	top: auto !important;
+	width: auto !important;
+	margin: 12px 0;
+	text-align: left;
+}
+#phonePanel #inventoryPanel {
+	position: static;
+	width: auto;
+	margin: 12px 0;
+	box-sizing: border-box;
+}
+#phonePanel #gameChat {
+	position: static;
+	width: auto;
+	margin: 12px 0;
+}
+#phonePanel #chatToggleBtn { float: none; }
+#phonePanel #chatPanel { margin-top: 7px; margin-bottom: 0; }
 #phoneTaxiBtn { border-color: #d6a72f !important; background: #9b6a12 !important; }
 #phoneTaxiBtn:hover { background: #bd841c !important; }
 #phoneEmergencyBtn { border-color: #c65151 !important; background: #7a3038 !important; }

@@ -98,7 +98,9 @@ const cancelBurglaryBtn = document.getElementById('cancelBurglaryBtn');
 const phonePanel = document.getElementById('phonePanel');
 const closePhoneBtn = document.getElementById('closePhoneBtn');
 const phoneMapBtn = document.getElementById('phoneMapBtn');
+const phoneNavigationBtn = document.getElementById('phoneNavigationBtn');
 const phoneInventoryBtn = document.getElementById('phoneInventoryBtn');
+const phoneChatBtn = document.getElementById('phoneChatBtn');
 const phoneQuestsBtn = document.getElementById('phoneQuestsBtn');
 const phoneTaxiBtn = document.getElementById('phoneTaxiBtn');
 const phoneEmergencyBtn = document.getElementById('phoneEmergencyBtn');
@@ -119,7 +121,11 @@ const closeTuningShopBtn = document.getElementById('closeTuningShopBtn');
 const tuningShopStatus = document.getElementById('tuningShopStatus');
 const tuningCarSelect = document.getElementById('tuningCarSelect');
 const tuningPartsList = document.getElementById('tuningPartsList');
+const mapNavigator = document.getElementById('mapNavigator');
 let unreadChatMessages = 0;
+
+phonePanel.append(mapNavigator, inventoryPanel, gameChat);
+mapNavigator.hidden = true;
 
 function getGameData(key) {
 	return localStorage.getItem(key);
@@ -1605,6 +1611,7 @@ function updateMapNavigatorLayout() {
 	const minimapWidth = minimapContainer.getBoundingClientRect().width || 200;
 	const targetWidth = Math.max(160, minimapWidth);
 	const navigator = document.getElementById('mapNavigator');
+	if (navigator?.parentElement === phonePanel) return;
 	if (navigator) {
 		navigator.style.left = `${32 + minimapWidth}px`;
 		navigator.style.top = '20px';
@@ -6085,6 +6092,9 @@ function openPhone() {
 
 function closePhone() {
 	phonePanel.style.display = 'none';
+	mapNavigator.hidden = true;
+	inventoryPanel.style.display = 'none';
+	chatPanel.hidden = true;
 }
 
 function togglePhone() {
@@ -6127,6 +6137,11 @@ phoneMapBtn.addEventListener('click', () => {
 	closePhone();
 	fullMapPanel.style.display = 'flex';
 });
+phoneNavigationBtn.addEventListener('click', () => {
+	mapNavigator.hidden = false;
+	mapSearchInput.focus();
+	setPhoneStatus('Suche einen Ort und folge der Markierung auf der Minikarte.');
+});
 closeFullMapBtn.addEventListener('click', () => {
 	fullMapPanel.style.display = 'none';
 	if (taxiMapSelectionActive) {
@@ -6135,9 +6150,18 @@ closeFullMapBtn.addEventListener('click', () => {
 	}
 });
 phoneInventoryBtn.addEventListener('click', () => {
-	closePhone();
 	renderInventory();
 	inventoryPanel.style.display = 'block';
+});
+phoneChatBtn.addEventListener('click', () => {
+	if (!multiplayerSocket?.connected) {
+		setPhoneStatus('Der Chat ist in einem Mehrspieler-Raum verfuegbar.');
+		return;
+	}
+	gameChat.style.display = 'block';
+	chatPanel.hidden = false;
+	chatToggleBtn.setAttribute('aria-expanded', 'true');
+	chatInput.focus();
 });
 phoneQuestsBtn.addEventListener('click', () => {
 	closePhone();
