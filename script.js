@@ -5517,13 +5517,13 @@ function animate() {
 	const cameraX = px - Math.sin(camAngleY) * horizontalDistance;
 	const cameraZ = pz - Math.cos(camAngleY) * horizontalDistance;
 	const cameraY = py + camDistance * Math.cos(camAngleX);
-	const cameraLerp = 0.18;
+	const cameraLerp = 0.14;
 	camera.position.x += (cameraX - camera.position.x) * cameraLerp;
 	camera.position.y += (cameraY - camera.position.y) * cameraLerp;
 	camera.position.z += (cameraZ - camera.position.z) * cameraLerp;
-	cameraTarget.x = px;
-	cameraTarget.y = py;
-	cameraTarget.z = pz;
+		cameraTarget.x += (px - cameraTarget.x) * 0.22;
+		cameraTarget.y += (py - cameraTarget.y) * 0.22;
+		cameraTarget.z += (pz - cameraTarget.z) * 0.22;
 	camera.lookAt(cameraTarget);
 
 	// Vögel animieren
@@ -6199,8 +6199,8 @@ function setTimeSpeed(speed) {
 
 scene.traverse(object => {
 	if (!object.isMesh) return;
-	object.castShadow = true;
-	object.receiveShadow = true;
+	object.castShadow = false;
+	object.receiveShadow = object === ground;
 });
 
 animate();

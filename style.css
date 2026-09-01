@@ -1046,7 +1046,10 @@ body.player-banned > :not(#banLockOverlay) {
 	transform: translate(-50%, -50%);
 	z-index: 1300;
 	width: min(320px, calc(100vw - 36px));
+	max-height: calc(100vh - 32px);
 	padding: 16px;
+	box-sizing: border-box;
+	overflow-y: auto;
 	border: 1px solid #5f91ad;
 	border-radius: 7px;
 	background: rgba(12, 23, 33, 0.97);
@@ -1101,15 +1104,16 @@ body.player-banned > :not(#banLockOverlay) {
 	position: static;
 	inset: auto;
 	width: auto;
-	height: 260px;
+	height: 540px;
+	flex: none;
 	margin: 12px 0;
 	padding: 10px;
 	box-sizing: border-box;
 	box-shadow: none;
 }
 #phonePanel #fullMapCanvas canvas {
-	width: min(100%, 220px);
-	height: min(100%, 220px);
+	width: min(100%, 480px);
+	height: auto;
 }
 #phoneTaxiBtn { border-color: #d6a72f !important; background: #9b6a12 !important; }
 #phoneTaxiBtn:hover { background: #bd841c !important; }
