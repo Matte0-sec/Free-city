@@ -58,6 +58,39 @@ body {
 }
 #businessPanel > button:disabled { opacity: 0.7; cursor: default; }
 #businessPanel .businessCloseButton { margin-left: 8px; border-color: #7a8d8c; background: #3d4b4b; }
+#policeAcademyPanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	z-index: 1400;
+	box-sizing: border-box;
+	width: min(420px, calc(100vw - 32px));
+	padding: 22px;
+	transform: translate(-50%, -50%);
+	border: 1px solid #6d9dcb;
+	border-radius: 7px;
+	background: rgba(15, 29, 46, 0.97);
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+	color: #eef6ff;
+	text-align: left;
+}
+#policeAcademyPanel h2 { margin: 0 0 12px; color: #91c7ff; }
+#policeAcademyPanel p { line-height: 1.45; }
+#policeAcademyPanel .policeRank { color: #d9edff; }
+#policeAcademyPanel .policeTask { color: #f1d787; }
+#policeAcademyPanel .policeHint { color: #b8cbe0; }
+#policeAcademyPanel h3 { margin: 18px 0 7px; color: #91c7ff; font-size: 1rem; }
+#policeAcademyPanel .gangCaseList { margin: 0 0 16px; padding-left: 20px; color: #d9edff; line-height: 1.5; }
+#policeAcademyPanel button {
+	padding: 9px 12px;
+	border: 1px solid #6d9dcb;
+	border-radius: 4px;
+	background: #28609b;
+	color: #fff;
+	font: inherit;
+	cursor: pointer;
+}
+#policeAcademyPanel .policeCloseButton { margin-left: 8px; border-color: #7a8d8c; background: #3d4b4b; }
 h1 {
 	margin-top: 10px;
 	position: absolute;

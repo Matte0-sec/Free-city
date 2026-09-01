@@ -909,6 +909,11 @@ let playerLevel = Math.max(1, Number(getGameData('playerLevel')) || 1);
 let playerXP = Math.max(0, Number(getGameData('playerXP')) || 0);
 let dailyMissionDate = getGameData('dailyMissionDate') || '';
 let dailyMissions = JSON.parse(getGameData('dailyMissions') || '[]');
+let policeCareer = JSON.parse(getGameData('policeCareer') || '{"rank":"civilian","arrests":0,"active":false}');
+policeCareer.arrests = Math.max(0, Number(policeCareer.arrests) || 0);
+policeCareer.active = Boolean(policeCareer.active);
+policeCareer.rank = policeCareer.rank || 'civilian';
+let gangStats = JSON.parse(getGameData('gangStats') || '{}');
 if (money === ADMIN_MONEY_AMOUNT && bankMoney === ADMIN_MONEY_AMOUNT) {
 	money = 0;
 	bankMoney = 0;
@@ -1238,6 +1243,8 @@ function saveData() {
 	setGameData('playerXP', playerXP);
 	setGameData('dailyMissionDate', dailyMissionDate);
 	setGameData('dailyMissions', JSON.stringify(dailyMissions));
+	setGameData('policeCareer', JSON.stringify(policeCareer));
+	setGameData('gangStats', JSON.stringify(gangStats));
 	setGameData('npcBankMoney', npcBankMoney);
 	setGameData('playerHealth', playerHealth);
 	setGameData('hunger', hunger);
@@ -3964,6 +3971,15 @@ const npcHealth = [];
 const npcCombatStates = [];
 const npcAttackCooldowns = [];
 const npcKnockoutUntil = [];
+const thiefNpcs = [];
+const gangs = [
+	{ id: 'ravens', name: 'Ravens', color: 0x8c2433, territory: 'Suedviertel', center: { x: 65, z: -75 } },
+	{ id: 'neon', name: 'Neon Crew', color: 0xb18a18, territory: 'Nordostviertel', center: { x: 250, z: 125 } }
+];
+const policeStationPosition = { x: 140, z: -220 };
+for (const gang of gangs) {
+	gangStats[gang.id] = gangStats[gang.id] || { arrests: 0, thefts: 0 };
+}
 
 const NPC_CROSSWALK_CHANCE = 0.18;
 const NPC_CROSSWALK_COOLDOWN_MS = 12000;
@@ -4032,6 +4048,139 @@ function addNPCs(count) {
 }
 
 addNPCs(100);
+
+function getPoliceRankLabel() {
+	return { civilian: 'Zivilist', cadet: 'Cadet', trainee: 'Trainee', officer: 'Polizist' }[policeCareer.rank] || 'Zivilist';
+}
+
+function updatePoliceRank() {
+	const previousRank = policeCareer.rank;
+	if (policeCareer.arrests >= 6) policeCareer.rank = 'officer';
+	else if (policeCareer.arrests >= 2) policeCareer.rank = 'trainee';
+	else policeCareer.rank = 'cadet';
+	if (previousRank !== policeCareer.rank) showMessage(`Beforderung: Du bist jetzt ${getPoliceRankLabel()}!`, 3500);
+}
+
+function openPoliceAcademyPanel() {
+	let panel = document.getElementById('policeAcademyPanel');
+	if (!panel) {
+		panel = document.createElement('section');
+		panel.id = 'policeAcademyPanel';
+		panel.setAttribute('aria-label', 'Polizeirevier');
+		document.body.appendChild(panel);
+	}
+	const nextGoal = policeCareer.rank === 'cadet'
+		? 'Noch 2 Festnahmen fuer Trainee'
+		: policeCareer.rank === 'trainee'
+			? `Noch ${Math.max(0, 6 - policeCareer.arrests)} Festnahmen fuer Polizist`
+			: 'Du bist voll ausgebildet. Reagiere auf Diebstahlmeldungen.';
+	const gangCases = gangs.map(gang => {
+		const stats = gangStats[gang.id];
+		return `<li><strong>${gang.name}</strong> - Gebiet: ${gang.territory}, Festnahmen: ${stats.arrests}, Diebstaehle: ${stats.thefts}</li>`;
+	}).join('');
+	panel.innerHTML = `
+		<h2>Polizeirevier</h2>
+		<p class="policeRank">Dienstgrad: <strong>${getPoliceRankLabel()}</strong></p>
+		<p>Festnahmen: ${policeCareer.arrests}</p>
+		<p class="policeTask">${nextGoal}</p>
+		<p class="policeHint">Bei einer Diebstahlmeldung den fliehenden Gang-Dieb finden und in seiner Naehe Enter druecken.</p>
+		<h3>Gang-Akten</h3>
+		<ul class="gangCaseList">${gangCases}</ul>
+		<button id="policeLeaveTrainingBtn" type="button">Ausbildung verlassen</button>
+		<button id="closePoliceAcademyBtn" class="policeCloseButton" type="button">Schliessen</button>
+	`;
+	document.getElementById('closePoliceAcademyBtn').addEventListener('click', () => panel.remove());
+	document.getElementById('policeLeaveTrainingBtn').addEventListener('click', () => {
+		policeCareer = { rank: 'civilian', arrests: 0, active: false };
+		saveData();
+		panel.remove();
+		showMessage('Du hast die Polizeiausbildung verlassen.', 2500);
+	});
+}
+
+function tryPoliceStationService() {
+	if (isInVehicle || Math.hypot(player.position.x - policeStationPosition.x, player.position.z - policeStationPosition.z) >= 24) return false;
+	if (!policeCareer.active) {
+		policeCareer.active = true;
+		policeCareer.rank = 'cadet';
+		saveData();
+		showMessage('Willkommen im Revier. Deine Ausbildung als Cadet beginnt.', 3500);
+	}
+	openPoliceAcademyPanel();
+	return true;
+}
+
+function createThief(gang, position) {
+	const thief = createHuman();
+	thief.position.set(position.x, 0, position.z);
+	thief.userData.isGangThief = true;
+	thief.userData.gang = gang;
+	thief.userData.state = 'roaming';
+	thief.userData.target = { x: gang.center.x + (Math.random() - 0.5) * 90, z: gang.center.z + (Math.random() - 0.5) * 90 };
+	thief.userData.nextCrimeAt = Date.now() + 10000 + Math.random() * 18000;
+	thief.userData.fleeTarget = null;
+	thief.traverse(child => {
+		if (child.isMesh && child.material?.color && child.position.y > 1 && child.position.y < 3) child.material.color.setHex(gang.color);
+	});
+	const marker = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 4), new THREE.MeshBasicMaterial({ color: gang.color }));
+	marker.position.y = 5.3;
+	marker.rotation.x = Math.PI;
+	thief.add(marker);
+	scene.add(thief);
+	thiefNpcs.push(thief);
+}
+
+function spawnGangThieves() {
+	const spawnPoints = [{ x: 65, z: -75 }, { x: -90, z: 190 }, { x: 250, z: 125 }, { x: -245, z: -125 }];
+	spawnPoints.forEach((position, index) => createThief(gangs[index % gangs.length], position));
+}
+
+function updateGangThieves() {
+	for (const thief of thiefNpcs) {
+		const data = thief.userData;
+		const target = data.state === 'fleeing' ? data.fleeTarget : data.target;
+		const distance = Math.hypot(target.x - thief.position.x, target.z - thief.position.z);
+		if (distance > 1) {
+			thief.position.x += ((target.x - thief.position.x) / distance) * (data.state === 'fleeing' ? 0.22 : 0.1);
+			thief.position.z += ((target.z - thief.position.z) / distance) * (data.state === 'fleeing' ? 0.22 : 0.1);
+			thief.lookAt(target.x, thief.position.y, target.z);
+		} else if (data.state === 'fleeing') {
+			data.state = 'roaming';
+			data.target = getValidSpawn();
+			data.nextCrimeAt = Date.now() + 18000 + Math.random() * 18000;
+		} else data.target = getValidSpawn();
+		if (data.state === 'roaming' && Date.now() >= data.nextCrimeAt) {
+			data.state = 'fleeing';
+			data.fleeTarget = getValidSpawn();
+			data.stolenAmount = 40 + Math.floor(Math.random() * 110);
+		gangStats[data.gang.id].thefts += 1;
+		saveData();
+			showMessage(`Diebstahl: Ein ${data.gang.name}-Dieb flieht mit ${data.stolenAmount} Euro!`, 4000);
+		}
+	}
+}
+
+function tryArrestGangThief() {
+	if (!policeCareer.active) return false;
+	const thief = thiefNpcs.find(candidate => candidate.userData.state === 'fleeing' && Math.hypot(candidate.position.x - player.position.x, candidate.position.z - player.position.z) < 5);
+	if (!thief) return false;
+	const thiefIndex = thiefNpcs.indexOf(thief);
+	const reward = 90 + (policeCareer.rank === 'officer' ? 60 : 0);
+	policeCareer.arrests += 1;
+	gangStats[thief.userData.gang.id].arrests += 1;
+	updatePoliceRank();
+	money += reward;
+	moneySpan.textContent = `Geld: ${money} €`;
+	gainXP(30, 'Festnahme');
+	scene.remove(thief);
+	thiefNpcs.splice(thiefIndex, 1);
+	saveData();
+	showMessage(`Festnahme erfolgreich. +${reward} Euro und +30 XP`, 3500);
+	setTimeout(() => createThief(gangs[Math.floor(Math.random() * gangs.length)], getValidSpawn()), 15000);
+	return true;
+}
+
+spawnGangThieves();
 
 function addRequesterNPCs() {
 	const requesterSpots = [
@@ -4875,6 +5024,7 @@ function animate() {
 	createJailInterior();
 	updateSurvival();
 	updateParkAtmPayout();
+	updateGangThieves();
 	
 	if (isPlayerInJail()) {
 		// Verbleibende Haftzeit anzeigen
@@ -8484,6 +8634,13 @@ testPoliceCarsBtn.addEventListener('click', () => runBankRobberyAction(testPolic
 testFootPoliceBtn.addEventListener('click', () => runBankRobberyAction(testFootPolice));
 
 document.addEventListener('keydown', e => {
+	if (e.key === 'Enter' && !e.repeat) {
+		const activeTag = document.activeElement?.tagName;
+		if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+			if (tryPoliceStationService()) return;
+			if (tryArrestGangThief()) return;
+		}
+	}
 	if (burglaryAttempt && e.code === 'Space') {
 		e.preventDefault();
 		const isSuccess = burglaryAttempt.markerPosition >= burglaryAttempt.targetStart &&
