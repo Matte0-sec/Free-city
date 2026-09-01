@@ -4101,13 +4101,38 @@ function openPoliceAcademyPanel() {
 function tryPoliceStationService() {
 	if (isInVehicle || Math.hypot(player.position.x - policeStationPosition.x, player.position.z - policeStationPosition.z) >= 24) return false;
 	if (!policeCareer.active) {
-		policeCareer.active = true;
-		policeCareer.rank = 'cadet';
-		saveData();
-		showMessage('Willkommen im Revier. Deine Ausbildung als Cadet beginnt.', 3500);
+		openPoliceEnrollmentPanel();
+		return true;
 	}
 	openPoliceAcademyPanel();
 	return true;
+}
+
+function openPoliceEnrollmentPanel() {
+	let panel = document.getElementById('policeEnrollmentPanel');
+	if (!panel) {
+		panel = document.createElement('section');
+		panel.id = 'policeEnrollmentPanel';
+		panel.setAttribute('aria-label', 'Einschreibung Polizeiakademie');
+		document.body.appendChild(panel);
+	}
+	panel.innerHTML = `
+		<h2>Polizeiakademie</h2>
+		<p>Du kannst dich fuer die Ausbildung zur Polizistin oder zum Polizisten einschreiben.</p>
+		<p class="policeEnrollmentHint">Du beginnst als Cadet und steigst durch Festnahmen zu Trainee und Polizist auf.</p>
+		<button id="policeEnrollBtn" type="button">Jetzt einschreiben</button>
+		<button id="closePoliceEnrollmentBtn" class="policeCloseButton" type="button">Abbrechen</button>
+	`;
+	document.getElementById('closePoliceEnrollmentBtn').addEventListener('click', () => panel.remove());
+	document.getElementById('policeEnrollBtn').addEventListener('click', () => {
+		policeCareer.active = true;
+		policeCareer.rank = 'cadet';
+		policeCareer.arrests = 0;
+		saveData();
+		panel.remove();
+		showMessage('Einschreibung erfolgreich. Deine Ausbildung als Cadet beginnt.', 3500);
+		openPoliceAcademyPanel();
+	});
 }
 
 function createThief(gang, position) {

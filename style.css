@@ -74,6 +74,35 @@ body {
 	color: #eef6ff;
 	text-align: left;
 }
+#policeEnrollmentPanel {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	z-index: 1400;
+	box-sizing: border-box;
+	width: min(420px, calc(100vw - 32px));
+	padding: 22px;
+	transform: translate(-50%, -50%);
+	border: 1px solid #6d9dcb;
+	border-radius: 7px;
+	background: rgba(15, 29, 46, 0.97);
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+	color: #eef6ff;
+	text-align: left;
+}
+#policeEnrollmentPanel h2 { margin: 0 0 12px; color: #91c7ff; }
+#policeEnrollmentPanel p { line-height: 1.45; }
+#policeEnrollmentPanel .policeEnrollmentHint { color: #f1d787; }
+#policeEnrollmentPanel button {
+	padding: 9px 12px;
+	border: 1px solid #6d9dcb;
+	border-radius: 4px;
+	background: #28609b;
+	color: #fff;
+	font: inherit;
+	cursor: pointer;
+}
+#policeEnrollmentPanel .policeCloseButton { margin-left: 8px; border-color: #7a8d8c; background: #3d4b4b; }
 #policeAcademyPanel h2 { margin: 0 0 12px; color: #91c7ff; }
 #policeAcademyPanel p { line-height: 1.45; }
 #policeAcademyPanel .policeRank { color: #d9edff; }
