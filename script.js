@@ -124,7 +124,7 @@ const tuningPartsList = document.getElementById('tuningPartsList');
 const mapNavigator = document.getElementById('mapNavigator');
 let unreadChatMessages = 0;
 
-phonePanel.append(mapNavigator, inventoryPanel, gameChat);
+phonePanel.append(mapNavigator, inventoryPanel, gameChat, fullMapPanel);
 mapNavigator.hidden = true;
 
 function getGameData(key) {
@@ -6095,6 +6095,7 @@ function closePhone() {
 	mapNavigator.hidden = true;
 	inventoryPanel.style.display = 'none';
 	chatPanel.hidden = true;
+	fullMapPanel.style.display = 'none';
 }
 
 function togglePhone() {
@@ -6134,8 +6135,8 @@ function requestEmergencyHelp() {
 
 closePhoneBtn.addEventListener('click', closePhone);
 phoneMapBtn.addEventListener('click', () => {
-	closePhone();
 	fullMapPanel.style.display = 'flex';
+	setPhoneStatus('Stadtkarte geoeffnet.');
 });
 phoneNavigationBtn.addEventListener('click', () => {
 	mapNavigator.hidden = false;

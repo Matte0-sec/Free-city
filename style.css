@@ -1097,6 +1097,20 @@ body.player-banned > :not(#banLockOverlay) {
 }
 #phonePanel #chatToggleBtn { float: none; }
 #phonePanel #chatPanel { margin-top: 7px; margin-bottom: 0; }
+#phonePanel #fullMapPanel {
+	position: static;
+	inset: auto;
+	width: auto;
+	height: 260px;
+	margin: 12px 0;
+	padding: 10px;
+	box-sizing: border-box;
+	box-shadow: none;
+}
+#phonePanel #fullMapCanvas canvas {
+	width: min(100%, 220px);
+	height: min(100%, 220px);
+}
 #phoneTaxiBtn { border-color: #d6a72f !important; background: #9b6a12 !important; }
 #phoneTaxiBtn:hover { background: #bd841c !important; }
 #phoneEmergencyBtn { border-color: #c65151 !important; background: #7a3038 !important; }
