@@ -1774,6 +1774,11 @@ if (mapSearchInput) {
 	});
 }
 window.addEventListener('mousemove', (e) => {
+	if (!isGameSessionActive) {
+		lastMouseX = null;
+		lastMouseY = null;
+		return;
+	}
 	if (lastMouseX !== null && lastMouseY !== null) {
 		const dx = e.clientX - lastMouseX;
 		const dy = e.clientY - lastMouseY;
@@ -4527,6 +4532,9 @@ function setupStartScreen() {
 		document.body.classList.toggle('mobile-controls-enabled', phoneMode);
 		if (phoneMode) initializeMobileInputs();
 		isGameSessionActive = true;
+		lastMouseX = null;
+		lastMouseY = null;
+		positionCameraAtPlayer();
 		realEstateActiveDay = realEstateDay;
 		parkAtmLastPayoutAt = Date.now();
 		saveData();
@@ -5126,6 +5134,18 @@ function updateMultiplayer() {
 	lastMultiplayerUpdate = Date.now();
 }
 
+function positionCameraAtPlayer() {
+	const playerHeight = player.position.y + 1.8;
+	const horizontalDistance = camDistance * Math.sin(camAngleX);
+	camera.position.set(
+		player.position.x - Math.sin(camAngleY) * horizontalDistance,
+		playerHeight + camDistance * Math.cos(camAngleX),
+		player.position.z - Math.cos(camAngleY) * horizontalDistance
+	);
+	cameraTarget.set(player.position.x, playerHeight, player.position.z);
+	camera.lookAt(cameraTarget);
+}
+
 setupStartScreen();
 
 // Punch-System
@@ -5195,6 +5215,10 @@ document.addEventListener('contextmenu', e => {
 
 function animate() {
 	requestAnimationFrame(animate);
+	if (!isGameSessionActive) {
+		renderer.render(scene, camera);
+		return;
+	}
 	createJailInterior();
 	updateSurvival();
 	updateParkAtmPayout();
