@@ -4285,7 +4285,9 @@ function updateGangThieves() {
 			data.stolenAmount = 40 + Math.floor(Math.random() * 110);
 			gangStats[data.gang.id].thefts += 1;
 			saveData();
-			showMessage(`Diebstahl bei ${theftLocation.label} (${Math.round(theftLocation.x)}, ${Math.round(theftLocation.z)}): Ein ${data.gang.name}-Dieb flieht mit ${data.stolenAmount} Euro!`, 5500);
+			if (policeCareer.active) {
+				showMessage(`Diebstahl bei ${theftLocation.label} (${Math.round(theftLocation.x)}, ${Math.round(theftLocation.z)}): Ein ${data.gang.name}-Dieb flieht mit ${data.stolenAmount} Euro!`, 5500);
+			}
 		}
 	}
 }
