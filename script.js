@@ -61,6 +61,7 @@ const closeTutorialBtn = document.getElementById('closeTutorialBtn');
 const playerNameInput = document.getElementById('playerNameInput');
 const playerNameStatus = document.getElementById('playerNameStatus');
 const roomCodeInput = document.getElementById('roomCodeInput');
+const onlineModeInput = document.getElementById('onlineModeInput');
 const liveRoomsList = document.getElementById('liveRoomsList');
 const profileName = document.getElementById('profileName');
 const friendNameInput = document.getElementById('friendNameInput');
@@ -105,6 +106,7 @@ const phoneQuestsBtn = document.getElementById('phoneQuestsBtn');
 const phoneTaxiBtn = document.getElementById('phoneTaxiBtn');
 const phoneEmergencyBtn = document.getElementById('phoneEmergencyBtn');
 const phoneStatus = document.getElementById('phoneStatus');
+const mobileMainMenuBtn = document.getElementById('mobileMainMenuBtn');
 const fullMapPanel = document.getElementById('fullMapPanel');
 const closeFullMapBtn = document.getElementById('closeFullMapBtn');
 const fullMapCanvas = document.getElementById('fullMapCanvas');
@@ -133,6 +135,21 @@ function getGameData(key) {
 
 function setGameData(key, value) {
 	localStorage.setItem(key, value);
+}
+
+const GAME_STATE_KEYS = [
+	'money', 'bankMoney', 'playerLevel', 'playerXP', 'dailyMissionDate', 'dailyMissions', 'policeCareer',
+	'gangStats', 'npcBankMoney', 'playerHealth', 'hunger', 'foodInventory', 'weaponInventory',
+	'selectedWeaponId', 'residentMoney', 'parkAtmActivated', 'parkAtmLastPayoutAt', 'jobEarnings',
+	'ownedHouses', 'ownedProperties', 'playerBusiness', 'realEstateDay', 'realEstateActiveDay',
+	'tuningParts', 'foundTuningParts', 'houseBought'
+];
+
+function getSavedGameState() {
+	return {
+		savedAt: Number(getGameData('gameStateSavedAt')) || Date.now(),
+		data: Object.fromEntries(GAME_STATE_KEYS.map(key => [key, getGameData(key)]).filter(([, value]) => value !== null))
+	};
 }
 
 function getPlayerIdentity() {
@@ -1271,7 +1288,9 @@ function saveData() {
 	setGameData('foundTuningParts', JSON.stringify(foundTuningParts));
 	houseBought = ownedHouses.length > 0;
 	setGameData('houseBought', houseBought);
+	setGameData('gameStateSavedAt', Date.now());
 	syncLeaderboardWealth();
+	syncGameState();
 }
 
 function showMessage(text, duration = 3000) {
@@ -1816,9 +1835,53 @@ const TRAFFIC_LANE_OFFSET = 3;
 const TRAFFIC_LIGHT_CYCLE_MS = 14000;
 const TRAFFIC_LIGHT_GREEN_MS = 7000;
 const TRAFFIC_TURN_CHANCE = 0.32;
+const HIGH_DETAIL_TRAFFIC_LIMIT = 6;
+let trafficCarModel = null;
+let highDetailTrafficCount = 0;
+
+function prepareTrafficCarModel(model) {
+	const bounds = new THREE.Box3().setFromObject(model);
+	const size = bounds.getSize(new THREE.Vector3());
+	const modelScale = Math.min(3.1 / Math.max(size.x, 0.01), 1.5 / Math.max(size.y, 0.01), 6.2 / Math.max(size.z, 0.01));
+	model.scale.setScalar(modelScale);
+	const scaledBounds = new THREE.Box3().setFromObject(model);
+	const center = scaledBounds.getCenter(new THREE.Vector3());
+	model.position.x -= center.x;
+	model.position.z -= center.z;
+	model.position.y -= scaledBounds.min.y;
+	model.traverse(object => {
+		if (!object.isMesh) return;
+		object.castShadow = false;
+		object.receiveShadow = false;
+	});
+	return model;
+}
+
+function loadTrafficCarModel() {
+	if (typeof window.GLTFLoader !== 'function') {
+		window.addEventListener('gltf-loader-ready', loadTrafficCarModel, { once: true });
+		return;
+	}
+	const loader = new window.GLTFLoader();
+	loader.load('models/traffic-buggy.glb', gltf => {
+		trafficCarModel = prepareTrafficCarModel(gltf.scene);
+		initCars();
+		showMessage('Neue Sportwagen sind im Stadtverkehr unterwegs.', 3000);
+	}, undefined, () => {
+		console.warn('Das Verkehrsmodell konnte nicht geladen werden. Der Verkehr nutzt einfache Fahrzeuge.');
+	});
+}
 
 function createTrafficCar(x, z, color = 0xff0000) {
 	const car = new THREE.Group();
+	if (trafficCarModel && highDetailTrafficCount < HIGH_DETAIL_TRAFFIC_LIMIT) {
+		const model = trafficCarModel.clone(true);
+		car.add(model);
+		car.position.set(x, 0, z);
+		highDetailTrafficCount += 1;
+		scene.add(car);
+		return car;
+	}
 	// Karosserie
 	const bodyGeo = new THREE.BoxGeometry(3, 1.2, 6);
 	const bodyMat = new THREE.MeshPhongMaterial({ color });
@@ -2168,6 +2231,7 @@ function initCars() {
 		if (vehicle.mesh?.parent) vehicle.mesh.parent.remove(vehicle.mesh);
 	}
 	cars.length = 0;
+	highDetailTrafficCount = 0;
 	buildTrafficLanes();
 	buildTrafficIntersections();
 	for (const lane of trafficLanes) {
@@ -2183,6 +2247,7 @@ function initCars() {
 }
 
 initCars();
+loadTrafficCarModel();
 
 // Licht
 const ambientLight = new THREE.HemisphereLight(0xcfeaff, 0x35532e, 1.5);
@@ -4386,6 +4451,7 @@ function initializeMobileInputs() {
 	mobileReceptionBtn.addEventListener('click', () => triggerMobileKey('r'));
 	mobilePhoneBtn.addEventListener('click', togglePhone);
 	mobileWeaponBtn.addEventListener('click', useSelectedWeapon);
+	mobileMainMenuBtn.addEventListener('click', returnToMainMenu);
 	mobilePunchBtn.addEventListener('pointerdown', event => {
 		if (!mobileControlsEnabled) return;
 		event.preventDefault();
@@ -4404,13 +4470,14 @@ function setupStartScreen() {
 	resetDailyMissionsIfNeeded();
 	renderLevelProfile();
 	upgradeNotificationBadge.hidden = getGameData('tutorialUpgradesReadVersion') === TUTORIAL_UPGRADE_VERSION;
-	connectToLobby();
+	setOnlineMode(onlineModeInput.checked);
 	tutorialBtn.addEventListener('click', () => {
 		tutorialDialog.hidden = false;
 		markTutorialUpgradesAsRead();
 	});
 	closeTutorialBtn.addEventListener('click', () => { tutorialDialog.hidden = true; });
 	playerNameInput.addEventListener('input', checkPlayerNameAvailability);
+	onlineModeInput.addEventListener('change', () => setOnlineMode(onlineModeInput.checked));
 	addFriendBtn.addEventListener('click', () => {
 		const friendName = friendNameInput.value.trim();
 		if (!friendName) {
@@ -4444,7 +4511,7 @@ function setupStartScreen() {
 	});
 
 	startGameBtn.addEventListener('click', () => {
-		if (!isPlayerNameAvailable) {
+		if (onlineModeInput.checked && !isPlayerNameAvailable) {
 			showMessage('Waehle zuerst einen verfuegbaren Spielernamen.', 2500);
 			return;
 		}
@@ -4464,7 +4531,7 @@ function setupStartScreen() {
 		parkAtmLastPayoutAt = Date.now();
 		saveData();
 		startOverlay.style.display = 'none';
-		connectToMultiplayerRoom();
+		if (onlineModeInput.checked) connectToMultiplayerRoom();
 	};
 
 	try {
@@ -4734,6 +4801,10 @@ function syncLeaderboardWealth() {
 	if (lobbySocket?.connected) lobbySocket.emit('update-wealth', { netWorth: getTotalWealth() });
 }
 
+function syncGameState() {
+	if (onlineModeInput?.checked && lobbySocket?.connected) lobbySocket.emit('save-game-state', getSavedGameState());
+}
+
 function renderLeaderboard(entries) {
 	leaderboardList.replaceChildren();
 	if (!entries.length) {
@@ -4838,6 +4909,13 @@ function registerCurrentProfile() {
 }
 
 function checkPlayerNameAvailability() {
+	if (!onlineModeInput.checked) {
+		isPlayerNameAvailable = true;
+		startGameBtn.disabled = false;
+		playerNameStatus.className = 'playerNameStatus available';
+		playerNameStatus.textContent = 'Offline-Modus: Du wirst nicht als online angezeigt.';
+		return;
+	}
 	isPlayerNameAvailable = false;
 	startGameBtn.disabled = true;
 	playerNameStatus.className = 'playerNameStatus';
@@ -4856,6 +4934,7 @@ const multiplayerServerUrl = ['localhost', '127.0.0.1'].includes(window.location
 	: 'https://free-city.onrender.com';
 
 function connectToLobby() {
+	if (!onlineModeInput.checked || lobbySocket) return;
 	if (typeof window.io !== 'function') {
 		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
 		return;
@@ -4868,6 +4947,7 @@ function connectToLobby() {
 		lobbySocket.emit('get-rooms');
 		registerCurrentProfile();
 		syncLeaderboardWealth();
+		syncGameState();
 	});
 	lobbySocket.on('rooms-updated', renderLiveRooms);
 	lobbySocket.on('admin-verified', () => {
@@ -4917,6 +4997,40 @@ function connectToLobby() {
 	lobbySocket.on('connect_error', () => {
 		liveRoomsList.textContent = 'Serverliste ist nicht erreichbar.';
 	});
+}
+
+function setOnlineMode(isOnline) {
+	if (isOnline) {
+		liveRoomsList.textContent = 'Raeume werden geladen...';
+		checkPlayerNameAvailability();
+		connectToLobby();
+		return;
+	}
+	if (lobbySocket) lobbySocket.disconnect();
+	lobbySocket = null;
+	multiplayerSocket = null;
+	isPlayerNameAvailable = true;
+	startGameBtn.disabled = false;
+	playerNameStatus.className = 'playerNameStatus available';
+	playerNameStatus.textContent = 'Offline-Modus: Du wirst nicht als online angezeigt.';
+	liveRoomsList.textContent = 'Offline-Modus: Keine Serververbindung.';
+}
+
+function returnToMainMenu() {
+	saveData();
+	if (lobbySocket) lobbySocket.disconnect();
+	lobbySocket = null;
+	multiplayerSocket = null;
+	clearRemotePlayers();
+	isGameSessionActive = false;
+	mobileControlsEnabled = false;
+	document.body.classList.remove('mobile-controls-enabled');
+	multiplayerStatus.style.display = 'none';
+	gameChat.style.display = 'none';
+	phonePanel.style.display = 'none';
+	startMoney.textContent = `Geld: ${money} €`;
+	startOverlay.style.display = 'flex';
+	setOnlineMode(onlineModeInput.checked);
 }
 
 function connectToMultiplayerRoom() {

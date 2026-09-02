@@ -648,6 +648,19 @@ body.player-banned > :not(#banLockOverlay) {
 #deviceModeBtn:hover {
 	background: #527d97;
 }
+.onlineMode {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 14px;
+	color: #d6ebf7;
+	font-size: 0.92rem;
+}
+.onlineMode input {
+	width: 18px;
+	height: 18px;
+	accent-color: #3c9a68;
+}
 #startGameBtn {
 	width: 100%;
 	padding: 11px 14px;
@@ -720,6 +733,9 @@ body.player-banned > :not(#banLockOverlay) {
 }
 .mobile-controls-enabled #mobilePunchBtn {
 	background: rgba(132, 59, 47, 0.9) !important;
+}
+.mobile-controls-enabled #mobileMainMenuBtn {
+	background: rgba(96, 76, 42, 0.92);
 }
 #ui {
 	position: absolute;

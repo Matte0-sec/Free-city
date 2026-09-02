@@ -6,6 +6,18 @@
 	<title>Free City 3D</title>
 	<link rel="stylesheet" href="style.css?v=20260817-menu-controls">
 	<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js"
+			}
+		}
+	</script>
+	<script type="module">
+		import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.154.0/examples/jsm/loaders/GLTFLoader.js';
+		window.GLTFLoader = GLTFLoader;
+		window.dispatchEvent(new Event('gltf-loader-ready'));
+	</script>
 	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
 <body>
@@ -34,6 +46,10 @@
 					<p id="playerNameStatus" class="playerNameStatus" aria-live="polite">Name wird geprueft...</p>
 					<label class="multiplayerField" for="roomCodeInput">Privater Raumcode
 						<input id="roomCodeInput" type="text" maxlength="12" autocomplete="off">
+					</label>
+					<label id="onlineMode" class="onlineMode" for="onlineModeInput">
+						<input id="onlineModeInput" type="checkbox" checked>
+						Online spielen
 					</label>
 					<button id="startGameBtn" type="button" disabled>Spiel starten</button>
 					<button id="tutorialBtn" type="button">Tutorial <span id="upgradeNotificationBadge" class="upgradeNotificationBadge" hidden aria-label="Neue Upgrades">!</span></button>
@@ -138,6 +154,7 @@
 			<button id="mobilePhoneBtn" aria-label="Handy">H</button>
 			<button id="mobileWeaponBtn" aria-label="Ausgerüstete Waffe benutzen">F</button>
 			<button id="mobilePunchBtn" aria-label="Schlagen">Schlag</button>
+			<button id="mobileMainMenuBtn" aria-label="Zum Hauptmenü">Menü</button>
 		</div>
 	</div>
 	<div id="mapNavigator">

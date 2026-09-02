@@ -211,6 +211,15 @@ io.on('connection', socket => {
 		saveProfiles();
 		broadcastLeaderboard();
 	});
+	socket.on('save-game-state', data => {
+		if (!socket.profileKey || !data || typeof data !== 'object' || typeof data.data !== 'object') return;
+		const serializedState = JSON.stringify(data.data);
+		if (serializedState.length > 200000) return;
+		const profile = profiles.get(socket.profileKey);
+		if (!profile) return;
+		profile.gameState = { savedAt: Math.floor(Number(data.savedAt) || Date.now()), data: JSON.parse(serializedState) };
+		saveProfiles();
+	});
 	socket.on('get-leaderboard', () => socket.emit('leaderboard-updated', getLeaderboard()));
 	socket.on('get-profile', data => {
 		const name = sanitizeText(data?.playerName, '', 16);
