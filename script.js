@@ -5137,14 +5137,49 @@ function updateMultiplayer() {
 }
 
 function positionCameraAtPlayer() {
-	const playerHeight = player.position.y + 1.8;
-	const horizontalDistance = camDistance * Math.sin(camAngleX);
-	camera.position.set(
-		player.position.x - Math.sin(camAngleY) * horizontalDistance,
-		playerHeight + camDistance * Math.cos(camAngleX),
-		player.position.z - Math.cos(camAngleY) * horizontalDistance
-	);
-	cameraTarget.set(player.position.x, playerHeight, player.position.z);
+	updateGameplayCamera(true);
+}
+
+function updateGameplayCamera(snapToTarget = false) {
+	let targetX = player.position.x;
+	let targetY = player.position.y + 1.8;
+	let targetZ = player.position.z;
+	let cameraDistance = camDistance;
+	let cameraYaw = camAngleY;
+	let cameraHeight = targetY + cameraDistance * Math.cos(camAngleX);
+	let cameraFov = 75;
+	let cameraLerp = 0.14;
+
+	if (isInVehicle && currentVehicle) {
+		targetX = currentVehicle.position.x;
+		targetY = currentVehicle.position.y + (currentVehicleType === 'helicopter' || currentVehicleType === 'airplane' ? 3 : 2.4);
+		targetZ = currentVehicle.position.z;
+		cameraDistance = currentVehicleType === 'helicopter' || currentVehicleType === 'airplane' ? 19 : 14;
+		cameraYaw = currentVehicle.rotation.y + (camAngleY - Math.PI / 2);
+		cameraHeight = currentVehicleType === 'helicopter' || currentVehicleType === 'airplane'
+			? currentVehicle.position.y + 10
+			: targetY + cameraDistance * Math.cos(camAngleX);
+		cameraFov = 82;
+		cameraLerp = 0.18;
+	}
+
+	const horizontalDistance = cameraDistance * Math.sin(camAngleX);
+	const cameraX = targetX - Math.sin(cameraYaw) * horizontalDistance;
+	const cameraZ = targetZ - Math.cos(cameraYaw) * horizontalDistance;
+	camera.fov = cameraFov;
+	camera.updateProjectionMatrix();
+
+	if (snapToTarget) {
+		camera.position.set(cameraX, cameraHeight, cameraZ);
+		cameraTarget.set(targetX, targetY, targetZ);
+	} else {
+		camera.position.x += (cameraX - camera.position.x) * cameraLerp;
+		camera.position.y += (cameraHeight - camera.position.y) * cameraLerp;
+		camera.position.z += (cameraZ - camera.position.z) * cameraLerp;
+		cameraTarget.x += (targetX - cameraTarget.x) * 0.22;
+		cameraTarget.y += (targetY - cameraTarget.y) * 0.22;
+		cameraTarget.z += (targetZ - cameraTarget.z) * 0.22;
+	}
 	camera.lookAt(cameraTarget);
 }
 
@@ -5648,25 +5683,6 @@ function animate() {
 		}
 	}
 
-	// Kamera folgt dem Spieler von hinten
-	const px = player.position.x;
-	const pz = player.position.z;
-	const py = player.position.y + 1.8;
-	camera.fov = 75;
-	camera.updateProjectionMatrix();
-	const horizontalDistance = camDistance * Math.sin(camAngleX);
-	const cameraX = px - Math.sin(camAngleY) * horizontalDistance;
-	const cameraZ = pz - Math.cos(camAngleY) * horizontalDistance;
-	const cameraY = py + camDistance * Math.cos(camAngleX);
-	const cameraLerp = 0.14;
-	camera.position.x += (cameraX - camera.position.x) * cameraLerp;
-	camera.position.y += (cameraY - camera.position.y) * cameraLerp;
-	camera.position.z += (cameraZ - camera.position.z) * cameraLerp;
-		cameraTarget.x += (px - cameraTarget.x) * 0.22;
-		cameraTarget.y += (py - cameraTarget.y) * 0.22;
-		cameraTarget.z += (pz - cameraTarget.z) * 0.22;
-	camera.lookAt(cameraTarget);
-
 	// Vögel animieren
 	for (const bird of birds) {
 		const data = bird.userData;
@@ -5711,6 +5727,7 @@ function animate() {
 	// Fahrzeug-Bewegung aktualisieren
 	updateVehicleMovement();
 	updateTaxiRide();
+	updateGameplayCamera();
 
 	// Spieler-Marker für Minimap aktualisieren und rendern
 	playerMarker.position.x = player.position.x;
@@ -8028,6 +8045,7 @@ function enterVehicle(vehicle) {
 		// Spieler-Position auf Fahrzeug setzen
 		player.position.copy(vehicle.position);
 		player.position.y += 2; // Etwas über dem Fahrzeug
+		updateGameplayCamera(true);
 		
 		// Fahrzeug als "aktiv" markieren
 		vehicle.userData.isActive = true;
@@ -8042,6 +8060,7 @@ function exitVehicle() {
 		// Spieler neben dem Fahrzeug positionieren
 		player.position.copy(currentVehicle.position);
 		player.position.x += 3; // Rechts neben dem Auto
+		updateGameplayCamera(true);
 		
 		// Fahrzeug als "inaktiv" markieren
 		currentVehicle.userData.isActive = false;
@@ -8082,16 +8101,6 @@ function updateVehicleMovement() {
 		if (currentVehicle.userData.rotor) currentVehicle.userData.rotor.rotation.y += 0.55;
 		player.position.copy(currentVehicle.position);
 		player.position.y += 2;
-		const cameraYaw = currentVehicle.rotation.y + (camAngleY - Math.PI / 2);
-		const distance = 19;
-		camera.position.set(
-			currentVehicle.position.x - Math.sin(cameraYaw) * distance,
-			currentVehicle.position.y + 10,
-			currentVehicle.position.z - Math.cos(cameraYaw) * distance
-		);
-		cameraTarget.copy(currentVehicle.position);
-		cameraTarget.y += 3;
-		camera.lookAt(cameraTarget);
 		return;
 	}
 
@@ -8196,27 +8205,6 @@ function updateVehicleMovement() {
 	// Spieler-Position mit dem Fahrzeug synchronisieren
 	player.position.copy(currentVehicle.position);
 	player.position.y = currentVehicle.position.y + 2;
-
-	// Fahrzeug-Kamera mit derselben Third-Person-Logik wie zu Fuß
-	const px = currentVehicle.position.x;
-	const pz = currentVehicle.position.z;
-	const py = currentVehicle.position.y + 2.4;
-	const vehicleCamDistance = 14;
-	camera.fov = 82;
-	camera.updateProjectionMatrix();
-	const cameraYaw = currentVehicle.rotation.y + (camAngleY - Math.PI / 2);
-	const horizontalDistance = vehicleCamDistance * Math.sin(camAngleX);
-	const cameraX = px - Math.sin(cameraYaw) * horizontalDistance;
-	const cameraZ = pz - Math.cos(cameraYaw) * horizontalDistance;
-	const cameraY = py + vehicleCamDistance * Math.cos(camAngleX);
-	const cameraLerp = 0.18;
-	camera.position.x += (cameraX - camera.position.x) * cameraLerp;
-	camera.position.y += (cameraY - camera.position.y) * cameraLerp;
-	camera.position.z += (cameraZ - camera.position.z) * cameraLerp;
-	cameraTarget.x = px;
-	cameraTarget.y = py;
-	cameraTarget.z = pz;
-	camera.lookAt(cameraTarget);
 }
 
 function checkVehicleInteraction() {
