@@ -8182,24 +8182,15 @@ function updateVehicleMovement() {
 		}
 	}
 
-	// Bewegung anwenden
-	if (Math.abs(vehicleSpeed) > 0.01) {
-		// Drift-Effekt bei scharfen Kurven
-		const driftFactor = Math.min(1, Math.abs(vehicleRotation) * 2);
-		const forwardX = Math.sin(currentVehicle.rotation.y) * vehicleSpeed;
-		const forwardZ = Math.cos(currentVehicle.rotation.y) * vehicleSpeed;
-
-		// Seitliche Drift-Komponente
-		const sideX = Math.sin(currentVehicle.rotation.y + Math.PI/2) * vehicleSpeed * driftFactor * 0.3;
-		const sideZ = Math.cos(currentVehicle.rotation.y + Math.PI/2) * vehicleSpeed * driftFactor * 0.3;
-
-		currentVehicle.position.x += forwardX + sideX;
-		currentVehicle.position.z += forwardZ + sideZ;
-	}
-
 	// Drehung anwenden
 	if (Math.abs(vehicleRotation) > 0.001) {
 		currentVehicle.rotation.y += vehicleRotation;
+	}
+
+	// Eigene Fahrzeugmodelle sind mit ihrer Front entlang der lokalen X-Achse gebaut.
+	if (Math.abs(vehicleSpeed) > 0.01) {
+		const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(currentVehicle.quaternion);
+		currentVehicle.position.addScaledVector(forward, vehicleSpeed);
 	}
 
 	// Spieler-Position mit dem Fahrzeug synchronisieren
